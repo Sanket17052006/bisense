@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from app.services.agents.pipeline import AgentPipeline
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
@@ -41,25 +42,29 @@ def chat(
         db.flush()
 
     db.add(Message(conversation_id=conversation.id, role="user", content=payload.message))
+    pipeline = AgentPipeline()
+    state = pipeline.run(payload.message)
+
     assistant = Message(
         conversation_id=conversation.id,
         role="assistant",
-        content=STUB_REPLY,
-        intent="general",
-        confidence=0.0,
-        sources=[],
+        content=state.answer,
+        intent=state.intent,
+        confidence=state.confidence,
+        sources=state.sources,
     )
+
     db.add(assistant)
     db.commit()
     db.refresh(conversation)
 
     return ChatResponse(
-        reply=STUB_REPLY,
-        intent="general",
-        agent=payload.agent,
-        confidence=0.0,
+        reply=state.answer,
+        intent=state.intent,
+        agent=state.agent,
+        confidence=state.confidence,
         conversation_id=conversation.id,
-        sources=[],
-        unsupported=True,
-        disclaimer="Placeholder: replace with Member 2 + 3 integration.",
+        sources=state.sources,
+        unsupported=state.unsupported,
+        disclaimer=state.disclaimer,
     )
