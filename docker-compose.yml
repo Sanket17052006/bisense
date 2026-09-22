@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: bisense-db
+    environment:
+      POSTGRES_USER: bisense
+      POSTGRES_PASSWORD: bisense
+      POSTGRES_DB: bisense
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bisense"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: bisense-api
+    environment:
+      DATABASE_URL: postgresql+psycopg2://bisense:bisense@postgres:5432/bisense
+      SECRET_KEY: change-me-in-prod
+      ENV: docker
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+
+volumes:
+  pgdata:

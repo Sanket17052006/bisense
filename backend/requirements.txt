@@ -1,0 +1,40 @@
+# --- web framework (Member 5) ---
+fastapi>=0.115.6
+uvicorn[standard]>=0.34.0
+pydantic>=2.12.0
+pydantic-settings>=2.7.0
+email-validator>=2.2.0
+python-multipart>=0.0.20
+httpx>=0.28.1
+
+# --- auth ---
+PyJWT>=2.10.1
+bcrypt>=4.1.0
+
+# --- database (Member 5 / Member 3) ---
+SQLAlchemy>=2.0.36
+psycopg2-binary>=2.9.10
+# pgvector>=0.3.6        # uncomment for a real vector column on Postgres
+
+# --- RAG / retrieval (Member 3) ---
+pymupdf>=1.24.14
+numpy>=2.2.1
+scikit-learn>=1.6.0
+# sentence-transformers>=3.3.1   # uncomment for semantic embeddings (heavy)
+# rank-bm25                       # alternative BM25 implementation
+
+# --- LLM / agents (Member 2) ---
+# openai>=1.59.7          # uncomment to enable LLM API calls
+# langgraph               # optional LangGraph use (services/agents is LangGraph-style)
+# langchain
+
+# --- vision / OCR (Member 4) ---
+# pytesseract>=0.3.13     # needs `tesseract` binary (brew install tesseract)
+# paddleocr>=2.8.1        # heavy; needs paddlepaddle
+# opencv-python-headless>=4.10.0.84
+
+# --- verification / freshness (Member 6) ---
+# requests>=2.32          # needed for online HEAD checks; urllib3/stdlib is default
+
+# --- testing ---
+pytest>=8.3.4

@@ -1,0 +1,7 @@
+title,product_category,is_number,notification_ref,gazette_date,effective_from,exemptions,hs_code,status
+"QCO for Electric Storage Water Heaters","Electric Water Heaters","IS 302-2-1","S.O. 1234(E)","2023-06-15","2024-01-01","Units for export or R&D with BIS approval","8516.10",in_force
+"QCO for LED Lamps","LED (Light Emitting Diode) Modules based Lamps","IS 16090","S.O. 2091(E)","2022-11-07","2023-06-01","LED modules for industrial/agricultural use exempt","9405.42",in_force
+"QCO for High Strength Deformed Steel Bars","Deformed Steel Bars for Concrete Reinforcement","IS 1786","S.O. 6543(E)","2020-02-14","2020-11-14","Stainless steel reinforcement bars exempt","7214.20",in_force
+"QCO for Ordinary Portland Cement","OPC Cement (33/43/53 Grade)","IS 269","S.O. 889(E)","2019-08-01","2020-02-01","Small cement producers under MSME threshold exempt","2523.10",in_force
+"QCO for Protective Helmets for Two-Wheeler Riders","Protective Helmets for Road Users","IS 4151:2015","S.O. 5416(E)","2018-12-05","2019-06-01","Helmets used by racing/off-road riders exempt","6506.10",in_force
+"QCO for PVC Insulated Cables","PVC Insulated Cables up to 1100 V","IS 694","S.O. 2103(E)","2019-04-01","2019-10-01","Fire-resistant cables under separate standard exempt","8544.49",in_force
