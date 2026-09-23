@@ -9,14 +9,32 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from app.services.agents.pipeline import AgentPipeline
+from pydantic import ValidationError
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.models import Conversation, Message, User
-from app.schemas.schemas import ChatRequest, ChatResponse
+from app.schemas.schemas import ChatRequest, ChatResponse, SourceOut
+from app.services.agents.pipeline import AgentPipeline
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+
+def _coerce_sources(sources: list) -> list[SourceOut]:
+    """Map raw RAG dicts to SourceOut, dropping malformed entries.
+
+    The DB stores sources as JSON dicts; ChatResponse validates against
+    SourceOut. A malformed retrieval result must not fail the whole request.
+    """
+    out: list[SourceOut] = []
+    for raw in sources or []:
+        if not isinstance(raw, dict):
+            continue
+        try:
+            out.append(SourceOut.model_validate(raw))
+        except ValidationError:
+            continue
+    return out
 
 STUB_REPLY = (
     "The chat engine is not integrated yet — this route is the Member 5 "
@@ -64,7 +82,7 @@ def chat(
         agent=state.agent,
         confidence=state.confidence,
         conversation_id=conversation.id,
-        sources=state.sources,
+        sources=_coerce_sources(state.sources),
         unsupported=state.unsupported,
         disclaimer=state.disclaimer,
     )

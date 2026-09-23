@@ -12,23 +12,28 @@ class LLMClient:
     """Small wrapper around the OpenAI chat completion API."""
 
     def __init__(self) -> None:
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise RuntimeError("OPENAI_API_KEY is not configured.")
-
-        base_url = os.getenv("LLM_BASE_URL") or None
+        self.api_key = os.getenv("OPENAI_API_KEY")
+        self.base_url = os.getenv("LLM_BASE_URL") or None
         self.model = os.getenv("LLM_MODEL", "gpt-4o-mini")
+        self._client: OpenAI | None = None
 
-        self.client = OpenAI(
-            api_key=api_key,
-            base_url=base_url,
-        )
+    @property
+    def client(self) -> OpenAI:
+        if self._client is None:
+            self._client = OpenAI(
+                api_key=self.api_key,
+                base_url=self.base_url,
+            )
+        return self._client
 
     def generate(
         self,
         system_prompt: str,
         user_message: str,
     ) -> str:
+        if not self.api_key:
+            raise RuntimeError("OPENAI_API_KEY is not configured.")
+
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[

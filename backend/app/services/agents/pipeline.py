@@ -23,7 +23,12 @@ class AgentPipeline:
         state = AgentState(message=message)
 
         # 1. Classify the user's intent.
-        intent, confidence = self.router.classify(message)
+        try:
+            intent, confidence = self.router.classify(message)
+        except Exception as exc:
+            state.unsupported = True
+            state.metadata["intent_error"] = str(exc)
+            intent, confidence = "general", 0.0
 
         state.intent = intent
         state.agent = intent
