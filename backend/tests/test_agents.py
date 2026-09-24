@@ -186,6 +186,42 @@ def test_llm_client_constructs_without_key_but_raises_on_generate():
             )
 
 
+def test_llm_sanitizes_control_characters():
+    assert LLMClient._sanitize("a\x7fb\tc\nd") == "ab\tc\nd"
+    assert LLMClient._sanitize("\x0bsolar\x0c") == "solar"
+
+
+def test_llm_chain_renders_openai_compatible_messages():
+    """The LangChain chain must produce a message list, not a ChatPromptValue.
+
+    Regression test: the previous chain passed a ChatPromptValue straight
+    through, so _call_model crashed on every real LLM request
+    ('tuple' object has no attribute 'type').
+    """
+    llm = LLMClient()
+    messages = llm._chain.invoke(
+        {
+            "system_prompt": "You are a bot.",
+            "user_message": "Hello",
+        }
+    )
+    roles = [getattr(message, "type", None) for message in messages]
+    assert roles == ["system", "human"]
+    assert isinstance(list(messages)[0].content, str)
+
+
+def test_pipeline_rule_based_fallback_without_llm_key():
+    with mock.patch.dict(os.environ, {}, clear=False):
+        os.environ.pop("OPENAI_API_KEY", None)
+
+        pipeline = AgentPipeline()
+        state = pipeline.run("What is a BIS standard?")
+
+        assert state.answer
+        assert state.unsupported is False
+        assert state.metadata.get("mode") == "rule-based"
+
+
 def test_chat_route_rejects_other_users_conversation():
     from fastapi.testclient import TestClient
 

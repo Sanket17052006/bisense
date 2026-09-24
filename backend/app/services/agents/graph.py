@@ -5,7 +5,8 @@ from typing import TypedDict
 from langgraph.graph import END, START, StateGraph
 
 from .agents import get_agent
-from .llm import LLMClient
+from .fallback import rule_based_answer
+from .llm import LLMClient, LLMNotConfigured
 from .rag import RAGService
 from .router import IntentRouter
 
@@ -40,6 +41,17 @@ def classify_intent(
         return {
             "intent": intent,
             "confidence": confidence,
+        }
+
+    except LLMNotConfigured:
+        # Offline mode: routing needs the LLM, so answer from the
+        # deterministic responder using the general intent.
+        return {
+            "intent": "general",
+            "confidence": 0.0,
+            "metadata": {
+                "mode": "rule-based",
+            },
         }
 
     except Exception as exc:
@@ -101,6 +113,19 @@ def generate_answer(
 
         return {
             "answer": answer,
+        }
+
+    except LLMNotConfigured:
+        metadata = dict(state.get("metadata", {}))
+        metadata["mode"] = "rule-based"
+
+        return {
+            "answer": rule_based_answer(
+                intent,
+                state["message"],
+            ),
+            "unsupported": False,
+            "metadata": metadata,
         }
 
     except Exception as exc:
