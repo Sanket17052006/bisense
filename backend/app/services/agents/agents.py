@@ -11,8 +11,28 @@ class BaseAgent:
         self.intent = intent
         self.llm = llm or LLMClient()
 
-    def answer(self, message: str, context: str = "") -> str:
+    def answer(
+        self,
+        message: str,
+        context: str = "",
+        history: list[dict[str, str]] | None = None,
+    ) -> str:
+        """Generate an answer using retrieval context and conversation history."""
+
         prompt = SYSTEM_PROMPT + "\n\n" + AGENT_PROMPTS[self.intent]
+
+        if history:
+            history_text = "\n".join(
+                f"{item.get('role', 'user')}: {item.get('content', '')}"
+                for item in history
+                if item.get("content")
+            )
+
+            if history_text:
+                prompt += (
+                    "\n\nRecent conversation history:\n"
+                    + history_text
+                )
 
         if context:
             prompt += (
@@ -74,5 +94,6 @@ AGENT_CLASSES = {
 
 def get_agent(intent: str, llm: LLMClient | None = None) -> BaseAgent:
     """Return the agent responsible for the requested intent."""
+
     agent_class = AGENT_CLASSES.get(intent, GeneralAgent)
     return agent_class(llm)

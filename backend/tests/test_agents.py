@@ -1,4 +1,5 @@
 import os
+import uuid
 from unittest import mock
 
 from app.api.routes.chat import _coerce_sources
@@ -6,8 +7,13 @@ from app.schemas.schemas import SourceOut
 from app.services.agents.agents import get_agent
 from app.services.agents.llm import LLMClient
 from app.services.agents.pipeline import AgentPipeline
+from app.services.agents.prompts import SYSTEM_PROMPT
 from app.services.agents.rag import RAGService
 from app.services.agents.router import IntentRouter
+
+
+def _email(tag):
+    return f"{tag}-{uuid.uuid4().hex[:8]}@example.com"
 
 
 class MockLLM:
@@ -27,14 +33,72 @@ class RaisingLLM:
         raise RuntimeError("LLM API is down")
 
 
+class RecordingLLM:
+    """Fake LLM that records prompts for pipeline behavior tests."""
+
+    def __init__(self):
+        self.calls = []
+
+    def generate(self, system_prompt: str, user_message: str) -> str:
+        self.calls.append(
+            {
+                "system_prompt": system_prompt,
+                "user_message": user_message,
+            }
+        )
+
+        if "Classify the user's message" in system_prompt:
+            return "standards"
+
+        return "Recorded mock BiSense response."
+
+
+class InvalidIntentLLM:
+    """Fake LLM that returns an unsupported intent."""
+
+    def generate(self, system_prompt: str, user_message: str) -> str:
+        if "Classify the user's message" in system_prompt:
+            return "unsupported_intent"
+
+        return "Fallback response."
+
+
+class RaisingRAG(RAGService):
+    """Fake retrieval layer that simulates a retrieval failure."""
+
+    def retrieve(
+        self,
+        query: str,
+        intent: str | None = None,
+        limit: int = 5,
+    ):
+        raise RuntimeError("RAG service is unavailable")
+
+
 class FakeRAG(RAGService):
     """Fake retrieval layer returning mixed-quality results."""
 
-    def retrieve(self, query: str, intent: str | None = None, limit: int = 5):
+    def retrieve(
+        self,
+        query: str,
+        intent: str | None = None,
+        limit: int = 5,
+    ):
         return [
-            {"id": "s1", "title": "IS 1234", "content": "Full text about IS 1234."},
-            {"id": "s2", "title": "IS 5678", "is_number": "5678"},
-            {"id": "s3", "content": "Missing a title and id."},
+            {
+                "id": "s1",
+                "title": "IS 1234",
+                "content": "Full text about IS 1234.",
+            },
+            {
+                "id": "s2",
+                "title": "IS 5678",
+                "is_number": "5678",
+            },
+            {
+                "id": "s3",
+                "content": "Missing a title and id.",
+            },
         ]
 
 
@@ -81,7 +145,10 @@ def test_pipeline_graceful_fallback_on_llm_failure():
 
 
 def test_sources_coerced_to_response_model():
-    pipeline = AgentPipeline(llm=MockLLM(), rag=FakeRAG())
+    pipeline = AgentPipeline(
+        llm=MockLLM(),
+        rag=FakeRAG(),
+    )
     state = pipeline.run("What is IS 1234?")
 
     outputs = _coerce_sources(state.sources)
@@ -92,7 +159,12 @@ def test_sources_coerced_to_response_model():
 
 
 def test_coerce_sources_drops_invalid_entries():
-    outputs = _coerce_sources(["not-a-dict", {"title": "no id"}])
+    outputs = _coerce_sources(
+        [
+            "not-a-dict",
+            {"title": "no id"},
+        ]
+    )
 
     assert outputs == []
 
@@ -109,4 +181,193 @@ def test_llm_client_constructs_without_key_but_raises_on_generate():
         except RuntimeError as exc:
             assert "OPENAI_API_KEY" in str(exc)
         else:
-            raise AssertionError("expected RuntimeError for missing API key")
+            raise AssertionError(
+                "expected RuntimeError for missing API key"
+            )
+
+
+def test_chat_route_rejects_other_users_conversation():
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as client:
+        # Create User A
+        owner_email = _email("conversation-owner")
+        owner_register = client.post(
+            "/api/auth/register",
+            json={
+                "name": "Conversation Owner",
+                "email": owner_email,
+                "password": "S3cure!pass",
+            },
+        )
+
+        assert owner_register.status_code == 201, owner_register.text
+        owner_token = owner_register.json()["access_token"]
+
+        # Create User A's conversation
+        owner_response = client.post(
+            "/api/chat",
+            headers={
+                "Authorization": f"Bearer {owner_token}"
+            },
+            json={
+                "message": "Create my conversation"
+            },
+        )
+
+        assert owner_response.status_code == 200, owner_response.text
+
+        conversation_id = owner_response.json()["conversation_id"]
+
+        # Create User B
+        other_email = _email("conversation-other")
+        other_register = client.post(
+            "/api/auth/register",
+            json={
+                "name": "Other User",
+                "email": other_email,
+                "password": "S3cure!pass",
+            },
+        )
+
+        assert other_register.status_code == 201, other_register.text
+        other_token = other_register.json()["access_token"]
+
+        # User B tries to access User A's conversation
+        response = client.post(
+            "/api/chat",
+            headers={
+                "Authorization": f"Bearer {other_token}"
+            },
+            json={
+                "message": (
+                    "Try to access another user's conversation"
+                ),
+                "conversation_id": conversation_id,
+            },
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Conversation not found"
+
+
+def test_pipeline_passes_conversation_history_to_agent():
+    llm = RecordingLLM()
+    pipeline = AgentPipeline(llm=llm)
+
+    history = [
+        {
+            "role": "user",
+            "content": "What is BIS?",
+        },
+        {
+            "role": "assistant",
+            "content": "BIS is the Bureau of Indian Standards.",
+        },
+    ]
+
+    state = pipeline.run(
+        "Tell me more about it.",
+        history=history,
+    )
+
+    assert state.answer
+    assert len(llm.calls) == 2
+
+    answer_call = llm.calls[1]
+
+    assert "Recent conversation history:" in (
+        answer_call["system_prompt"]
+    )
+    assert "What is BIS?" in answer_call["system_prompt"]
+    assert (
+        "BIS is the Bureau of Indian Standards."
+        in answer_call["system_prompt"]
+    )
+    assert answer_call["user_message"] == "Tell me more about it."
+
+
+def test_pipeline_preserves_rag_failure_metadata():
+    pipeline = AgentPipeline(
+        llm=MockLLM(),
+        rag=RaisingRAG(),
+    )
+
+    state = pipeline.run(
+        "What is a BIS standard?"
+    )
+
+    assert state.answer
+    assert state.unsupported is True
+    assert "rag_error" in state.metadata
+    assert state.sources == []
+
+
+def test_invalid_router_intent_falls_back_to_general():
+    router = IntentRouter(InvalidIntentLLM())
+
+    intent, confidence = router.classify(
+        "This is an unrelated question."
+    )
+
+    assert intent == "general"
+    assert confidence == 0.6
+
+
+def test_multilingual_response_rules_are_present():
+    assert (
+        "Reply in the same language used by the user"
+        in SYSTEM_PROMPT
+    )
+    assert (
+        "If the user explicitly asks for a different language"
+        in SYSTEM_PROMPT
+    )
+    assert "English, Hindi, Hinglish" in SYSTEM_PROMPT
+
+
+def test_all_supported_intents_have_agents():
+    supported_intents = {
+        "standards",
+        "certification",
+        "qco",
+        "lab",
+        "hallmarking",
+        "consumer",
+        "general",
+    }
+
+    for intent in supported_intents:
+        agent = get_agent(
+            intent,
+            MockLLM(),
+        )
+
+        assert agent.intent == intent
+
+
+def test_rag_context_is_passed_to_agent():
+    llm = RecordingLLM()
+    pipeline = AgentPipeline(
+        llm=llm,
+        rag=FakeRAG(),
+    )
+
+    state = pipeline.run(
+        "What is IS 1234?"
+    )
+
+    assert state.answer
+
+    answer_call = llm.calls[1]
+
+    assert (
+        "Retrieved information from the knowledge system:"
+        in answer_call["system_prompt"]
+    )
+    assert "IS 1234" in answer_call["system_prompt"]
+    assert "Full text about IS 1234." in (
+        answer_call["system_prompt"]
+    )

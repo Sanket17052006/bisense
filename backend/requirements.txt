@@ -24,9 +24,9 @@ scikit-learn>=1.6.0
 # rank-bm25                       # alternative BM25 implementation
 
 # --- LLM / agents (Member 2) ---
-openai>=1.59.7          # uncomment to enable LLM API calls
-# langgraph               # optional LangGraph use (services/agents is LangGraph-style)
-# langchain
+openai>=1.59.7
+langgraph>=1.2.12
+langchain>=1.4.2
 
 # --- vision / OCR (Member 4) ---
 # pytesseract>=0.3.13     # needs `tesseract` binary (brew install tesseract)

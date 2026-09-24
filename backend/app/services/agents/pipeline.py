@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from .agents import get_agent
+from .graph import compile_agent_graph
 from .llm import LLMClient
 from .rag import RAGService
-from .router import IntentRouter
 from .state import AgentState
 
 
 class AgentPipeline:
-    """Runs the complete BiSense AI agent pipeline."""
+    """Runs the BiSense AI workflow using LangGraph."""
 
     def __init__(
         self,
@@ -17,54 +16,57 @@ class AgentPipeline:
     ) -> None:
         self.llm = llm or LLMClient()
         self.rag = rag or RAGService()
-        self.router = IntentRouter(self.llm)
-
-    def run(self, message: str) -> AgentState:
-        state = AgentState(message=message)
-
-        # 1. Classify the user's intent.
-        try:
-            intent, confidence = self.router.classify(message)
-        except Exception as exc:
-            state.unsupported = True
-            state.metadata["intent_error"] = str(exc)
-            intent, confidence = "general", 0.0
-
-        state.intent = intent
-        state.agent = intent
-        state.confidence = confidence
-
-        # 2. Retrieve relevant information.
-        sources = self.rag.retrieve(
-            query=message,
-            intent=intent,
-            limit=5,
+        self.graph = compile_agent_graph(
+            self.llm,
+            self.rag,
         )
 
-        state.sources = sources
+    def run(
+        self,
+        message: str,
+        history: list[dict[str, str]] | None = None,
+    ) -> AgentState:
+        """Run the LangGraph workflow and convert its result to AgentState."""
 
-        # 3. Convert retrieved information into agent context.
-        context = self.rag.format_context(sources)
+        initial_state = {
+            "message": message,
+            "history": history or [],
+        }
 
-        # 4. Select the specialized agent.
-        agent = get_agent(intent, self.llm)
-
-        # 5. Generate the answer.
         try:
-            state.answer = agent.answer(
-                message,
-                context=context,
-            )
+            result = self.graph.invoke(initial_state)
         except Exception as exc:
-            state.unsupported = True
-            state.disclaimer = (
-                "The AI service could not process this request. "
-                "Please try again later."
-            )
-            state.metadata["error"] = str(exc)
-            state.answer = (
-                "I’m unable to process your request right now. "
-                "Please try again later."
+            return AgentState(
+                message=message,
+                intent="general",
+                agent="general",
+                confidence=0.0,
+                answer=(
+                    "I’m unable to process your request right now. "
+                    "Please try again later."
+                ),
+                sources=[],
+                unsupported=True,
+                disclaimer=(
+                    "The AI service could not process this request. "
+                    "Please try again later."
+                ),
+                metadata={"graph_error": str(exc)},
             )
 
-        return state
+        intent = result.get("intent", "general")
+
+        return AgentState(
+            message=message,
+            intent=intent,
+            agent=intent,
+            confidence=result.get("confidence", 0.0),
+            answer=result.get("answer", ""),
+            sources=result.get("sources", []),
+            unsupported=result.get("unsupported", False),
+            disclaimer=result.get("disclaimer"),
+            metadata={
+                **result.get("metadata", {}),
+                "history": history or [],
+            },
+        )
