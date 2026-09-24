@@ -45,3 +45,14 @@ def test_health_ok():
         assert resp.status_code == 200
         body = resp.json()
         assert body["status"] == "ok"
+
+
+def test_health_reports_member2_llm_status():
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as client:
+        body = client.get("/api/health").json()
+        assert "llm" in body
+        assert body["llm"] != "n/a (Member 2)"

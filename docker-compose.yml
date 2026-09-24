@@ -21,8 +21,11 @@ services:
     container_name: bisense-api
     environment:
       DATABASE_URL: postgresql+psycopg2://bisense:bisense@postgres:5432/bisense
-      SECRET_KEY: change-me-in-prod
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-prod}
       ENV: docker
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.groq.com/openai/v1}
+      LLM_MODEL: ${LLM_MODEL:-openai/gpt-oss-120b}
     ports:
       - "8000:8000"
     depends_on:

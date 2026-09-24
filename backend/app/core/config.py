@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     llm_model: str = "gpt-4o-mini"
     llm_base_url: str | None = None
+    llm_timeout: float = 30.0
+    llm_max_retries: int = 2
 
     # --- RAG ---
     embedder: str = "tfidf"  # "sentence-transformers" | "tfidf" | "openai"

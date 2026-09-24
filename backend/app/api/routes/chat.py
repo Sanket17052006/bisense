@@ -1,15 +1,16 @@
 """Chat router — Member 5 API shell.
 
 The chat engine is owned by Member 2 (agents) and Member 6 (verification).
-This stub keeps the POST /api/chat contract stable and persists the
-conversation/message rows (Member 5 infrastructure) so /api/history works
-until the agent pipeline is integrated.
+This route keeps the POST /api/chat contract stable, persists conversation
+messages, enforces conversation ownership, and passes recent conversation
+history to the Member 2 agent pipeline.
 """
+
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import ValidationError
+from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
@@ -17,30 +18,28 @@ from app.models.models import Conversation, Message, User
 from app.schemas.schemas import ChatRequest, ChatResponse, SourceOut
 from app.services.agents.pipeline import AgentPipeline
 
+
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
 def _coerce_sources(sources: list) -> list[SourceOut]:
-    """Map raw RAG dicts to SourceOut, dropping malformed entries.
+    """Map raw RAG dictionaries to SourceOut objects.
 
-    The DB stores sources as JSON dicts; ChatResponse validates against
-    SourceOut. A malformed retrieval result must not fail the whole request.
+    Malformed retrieval results are ignored so they do not cause the
+    complete chat response to fail.
     """
     out: list[SourceOut] = []
+
     for raw in sources or []:
         if not isinstance(raw, dict):
             continue
+
         try:
             out.append(SourceOut.model_validate(raw))
         except ValidationError:
             continue
-    return out
 
-STUB_REPLY = (
-    "The chat engine is not integrated yet — this route is the Member 5 "
-    "contract stub. Member 2 (AI router/agents) and Member 3 (RAG) own the "
-    "implementation and will replace this response."
-)
+    return out
 
 
 @router.post("", response_model=ChatResponse)
@@ -49,20 +48,73 @@ def chat(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Process a chat message for the authenticated user."""
+
     conversation: Conversation | None = None
+
+    # Reuse an existing conversation only when it belongs to the
+    # authenticated user.
     if payload.conversation_id:
-        conversation = db.get(Conversation, payload.conversation_id)
+        conversation = (
+            db.query(Conversation)
+            .filter(
+                Conversation.id == payload.conversation_id,
+                Conversation.user_id == user.id,
+            )
+            .first()
+        )
+
         if conversation is None:
-            conversation = None
+            raise HTTPException(
+                status_code=404,
+                detail="Conversation not found",
+            )
+
+    # Create a new conversation when no conversation ID was supplied.
     if conversation is None:
-        conversation = Conversation(user_id=user.id, title=payload.message[:80])
+        conversation = Conversation(
+            user_id=user.id,
+            title=payload.message[:80],
+        )
         db.add(conversation)
         db.flush()
 
-    db.add(Message(conversation_id=conversation.id, role="user", content=payload.message))
-    pipeline = AgentPipeline()
-    state = pipeline.run(payload.message)
+    # Load only the most recent messages from this conversation.
+    # The current user message is added after this query so it is not
+    # duplicated in the history passed to the pipeline.
+    history_messages = (
+        db.query(Message)
+        .filter(Message.conversation_id == conversation.id)
+        .order_by(Message.created_at.desc())
+        .limit(10)
+        .all()
+    )
 
+    history = [
+        {
+            "role": message.role,
+            "content": message.content,
+        }
+        for message in reversed(history_messages)
+    ]
+
+    # Persist the current user message.
+    db.add(
+        Message(
+            conversation_id=conversation.id,
+            role="user",
+            content=payload.message,
+        )
+    )
+
+    # Run the Member 2 AI pipeline with recent conversation context.
+    pipeline = AgentPipeline()
+    state = pipeline.run(
+        payload.message,
+        history=history,
+    )
+
+    # Persist the assistant response.
     assistant = Message(
         conversation_id=conversation.id,
         role="assistant",

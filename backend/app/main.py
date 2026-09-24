@@ -87,7 +87,11 @@ def health():
         "status": "ok",
         "app": settings.app_name,
         "version": settings.version,
-        "llm": "n/a (Member 2)",
+        "llm": (
+            settings.llm_model
+            if settings.openai_api_key
+            else "not configured (rule-based fallback)"
+        ),
         "embedder": "n/a (Member 3)",
         "reranker": "n/a (Member 3)",
         "db": "postgresql" if settings.database_url.startswith("postgresql") else "sqlite",
