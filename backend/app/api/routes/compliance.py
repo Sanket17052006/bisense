@@ -8,10 +8,19 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.models import ComplianceCheck
-from app.schemas.schemas import ComplianceCheckOut, ComplianceCheckRequest, ComplianceOverview
+from app.schemas.schemas import ComplianceCheckOut, ComplianceCheckRequest, ComplianceOverview, ComplianceFinding
 from app.vision.compliance.compliance_checker import check_compliance as vision_check_compliance
 
 router = APIRouter(prefix="/compliance", tags=["compliance"])
+
+
+def _map_finding(f: dict) -> ComplianceFinding:
+    """Map gap detector output to ComplianceFinding schema."""
+    return ComplianceFinding(
+        check=f.get("field", "unknown"),
+        status=f.get("status", "unavailable"),
+        detail=f.get("reason", f.get("detail", "")),
+    )
 
 
 @router.post("/check", response_model=ComplianceCheckOut)
@@ -22,15 +31,17 @@ def create_check(
 ):
     # Run the Member 4 compliance checker
     try:
-        result = vision_check_compliance(
-            product_type=payload.product_type,
-            is_number=payload.is_number,
-            extracted=payload.extracted,
-        )
-        status_val = result.get("status", "unavailable")
-        findings = result.get("findings", [])
-        summary = result.get("summary", "")
-        confidence = result.get("confidence", 0.0)
+        info = {
+            "product_type": payload.product_type,
+            "is_number": payload.is_number,
+            "extracted": payload.extracted,
+        }
+        result = vision_check_compliance(info)
+        status_val = result.get("overall_status", "unavailable")
+        raw_findings = result.get("findings", [])
+        summary = result.get("disclaimer", "")
+        confidence = 0.5
+        findings = [_map_finding(f) for f in raw_findings]
     except Exception as e:
         print(f"[Compliance] Check error: {e}")
         status_val = "unavailable"
@@ -43,7 +54,7 @@ def create_check(
         product=payload.product_type,
         is_number=payload.is_number,
         status=status_val,
-        findings=[f.model_dump() if hasattr(f, 'model_dump') else f for f in findings],
+        findings=[f.model_dump() for f in findings],
         summary=summary,
         confidence=confidence,
     )

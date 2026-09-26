@@ -16,6 +16,10 @@ router = APIRouter(prefix="/labels", tags=["labels"])
 DISCLAIMER = "This is a technical scan, not a legal determination of compliance."
 
 
+def _first(lst):
+    return lst[0] if lst else None
+
+
 @router.post("/scan", response_model=LabelReport)
 async def scan_label(
     file: UploadFile,
@@ -29,10 +33,21 @@ async def scan_label(
     # Run the Member 4 vision pipeline
     try:
         result = vision_scan_label(str(path))
-        extracted = LabelExtracted(**result.get("extracted", {}))
-        findings = result.get("findings", [])
-        confidence = result.get("confidence", 0.0)
-        status_val = result.get("status", "unavailable")
+        # result is the direct output from extract_product_info
+        extracted = LabelExtracted(
+            is_number=_first(result.get("is_numbers")),
+            licence_number=_first(result.get("licence_numbers")),
+            mrp=result.get("mrp"),
+            quantity=_first(result.get("quantities")),
+            manufacturer=result.get("manufacturer"),
+            product_name=None,
+            batch=None,
+            hsn_code=None,
+            raw_text=result.get("raw_text", ""),
+        )
+        findings = []
+        confidence = 0.5  # basic extraction confidence
+        status_val = "extracted"
     except Exception as e:
         print(f"[Vision] Scan error: {e}")
         extracted = LabelExtracted(raw_text="")
