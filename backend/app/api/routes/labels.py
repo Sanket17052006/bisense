@@ -1,9 +1,4 @@
-"""Label scanner router — Member 5 API shell.
-
-Vision/OCR is owned by Member 4. This stub keeps the POST /api/labels/scan
-contract (LabelReport) and persists the scan row; status is "unavailable"
-until the vision pipeline is integrated.
-"""
+"""Label scanner router — Member 4 Vision/OCR pipeline."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
@@ -14,6 +9,7 @@ from app.db.session import get_db
 from app.models.models import LabelScan
 from app.schemas.schemas import LabelExtracted, LabelReport
 from app.services.files import save_image
+from app.vision.product.label_scanner import scan_label as vision_scan_label
 
 router = APIRouter(prefix="/labels", tags=["labels"])
 
@@ -30,21 +26,35 @@ async def scan_label(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Upload an image file (JPEG/PNG)")
     path = save_image(file)
 
+    # Run the Member 4 vision pipeline
+    try:
+        result = vision_scan_label(str(path))
+        extracted = LabelExtracted(**result.get("extracted", {}))
+        findings = result.get("findings", [])
+        confidence = result.get("confidence", 0.0)
+        status_val = result.get("status", "unavailable")
+    except Exception as e:
+        print(f"[Vision] Scan error: {e}")
+        extracted = LabelExtracted(raw_text="")
+        findings = []
+        confidence = 0.0
+        status_val = "unavailable"
+
     report = LabelReport(
         id="",
-        status="unavailable",
-        extracted=LabelExtracted(raw_text=""),
-        findings=[],
-        confidence=0.0,
-        disclaimer=DISCLAIMER + " Vision pipeline owned by Member 4 — not integrated yet.",
+        status=status_val,
+        extracted=extracted,
+        findings=findings,
+        confidence=confidence,
+        disclaimer=DISCLAIMER,
     )
     scan = LabelScan(
         user_id=user.id,
         image_path=str(path),
         status=report.status,
         extracted=report.extracted.model_dump(),
-        findings=[],
-        confidence=0.0,
+        findings=[f.model_dump() for f in findings],
+        confidence=confidence,
     )
     db.add(scan)
     db.commit()

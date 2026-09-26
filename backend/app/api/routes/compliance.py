@@ -1,9 +1,4 @@
-"""Compliance router — Member 5 API shell.
-
-Dashboard/history reads are shared DB access (M5 tables). The compliance-gap
-scanner itself is owned by Member 4; POST /check returns an "unavailable"
-Check row until that is integrated.
-"""
+"""Compliance router — Member 4 Vision/Compliance pipeline."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,6 +9,7 @@ from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.models import ComplianceCheck
 from app.schemas.schemas import ComplianceCheckOut, ComplianceCheckRequest, ComplianceOverview
+from app.vision.compliance.compliance_checker import check_compliance as vision_check_compliance
 
 router = APIRouter(prefix="/compliance", tags=["compliance"])
 
@@ -24,14 +20,32 @@ def create_check(
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # Run the Member 4 compliance checker
+    try:
+        result = vision_check_compliance(
+            product_type=payload.product_type,
+            is_number=payload.is_number,
+            extracted=payload.extracted,
+        )
+        status_val = result.get("status", "unavailable")
+        findings = result.get("findings", [])
+        summary = result.get("summary", "")
+        confidence = result.get("confidence", 0.0)
+    except Exception as e:
+        print(f"[Compliance] Check error: {e}")
+        status_val = "unavailable"
+        findings = []
+        summary = "Compliance scanner error"
+        confidence = 0.0
+
     row = ComplianceCheck(
         user_id=user.id,
         product=payload.product_type,
         is_number=payload.is_number,
-        status="unavailable",
-        findings=[],
-        summary="Compliance scanner owned by Member 4 — not integrated yet.",
-        confidence=0.0,
+        status=status_val,
+        findings=[f.model_dump() if hasattr(f, 'model_dump') else f for f in findings],
+        summary=summary,
+        confidence=confidence,
     )
     db.add(row)
     db.commit()
