@@ -172,6 +172,11 @@ def test_coerce_sources_drops_invalid_entries():
 def test_llm_client_constructs_without_key_but_raises_on_generate():
     with mock.patch.dict(os.environ, {}, clear=False):
         os.environ.pop("OPENAI_API_KEY", None)
+        os.environ.pop("GROQ_API_KEY", None)
+
+        import app.core.config as config_module
+        config_module.settings.openai_api_key = None
+        config_module.settings.groq_api_key = None
 
         llm = LLMClient()
         assert llm.api_key is None
@@ -213,6 +218,11 @@ def test_llm_chain_renders_openai_compatible_messages():
 def test_pipeline_rule_based_fallback_without_llm_key():
     with mock.patch.dict(os.environ, {}, clear=False):
         os.environ.pop("OPENAI_API_KEY", None)
+        os.environ.pop("GROQ_API_KEY", None)
+
+        import app.core.config as config_module
+        config_module.settings.openai_api_key = None
+        config_module.settings.groq_api_key = None
 
         pipeline = AgentPipeline()
         state = pipeline.run("What is a BIS standard?")
