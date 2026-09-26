@@ -20,13 +20,16 @@ psycopg2-binary>=2.9.10
 pymupdf>=1.24.14
 numpy>=2.2.1
 scikit-learn>=1.6.0
-# sentence-transformers>=3.3.1   # uncomment for semantic embeddings (heavy)
-# rank-bm25                       # alternative BM25 implementation
+sentence-transformers>=3.3.1
+rank-bm25>=0.2.2
+faiss-cpu>=1.8.0
+pandas>=2.2.0
 
 # --- LLM / agents (Member 2) ---
 openai>=1.59.7
 langgraph>=1.2.12
 langchain>=1.4.2
+langchain-groq>=0.2.0
 
 # --- vision / OCR (Member 4) ---
 # pytesseract>=0.3.13     # needs `tesseract` binary (brew install tesseract)

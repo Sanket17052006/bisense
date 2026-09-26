@@ -35,7 +35,24 @@ def _coerce_sources(sources: list) -> list[SourceOut]:
             continue
 
         try:
-            out.append(SourceOut.model_validate(raw))
+            # Support both old format (id, title, content, is_number) and new RAG format
+            # title is required - don't provide default, let validation fail
+            mapped = {
+                "id": raw.get("id") or raw.get("chunk_id") or "",
+                "title": raw.get("title") or raw.get("source"),
+                "is_number": raw.get("is_number"),
+                "chapter": raw.get("chapter"),
+                "page": raw.get("page") or raw.get("page_number"),
+                "year": raw.get("year"),
+                "score": float(raw.get("score") or raw.get("hybrid_score") or raw.get("rerank_score") or 0.0),
+                "fresh": True,
+                "amendment": raw.get("amendment"),
+                "superseded": False,
+            }
+            # Validate required fields (id and title are required by SourceOut)
+            if not mapped["id"] or not mapped["title"]:
+                continue
+            out.append(SourceOut.model_validate(mapped))
         except ValidationError:
             continue
 

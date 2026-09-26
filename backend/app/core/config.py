@@ -39,24 +39,35 @@ class Settings(BaseSettings):
 
     # --- LLM ---
     openai_api_key: str | None = None
-    llm_model: str = "gpt-4o-mini"
-    llm_base_url: str | None = None
+    llm_model: str = "openai/gpt-oss-120b"
+    llm_base_url: str | None = "https://api.groq.com/openai/v1"
     llm_timeout: float = 30.0
     llm_max_retries: int = 2
+    groq_api_key: str | None = None
+    groq_model: str = "qwen/qwen3.8-27b"
 
     # --- RAG ---
-    embedder: str = "tfidf"  # "sentence-transformers" | "tfidf" | "openai"
+    embedder: str = "sentence-transformers"  # "sentence-transformers" | "tfidf" | "openai"
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    enable_reranker: bool = True
     top_k: int = 6
     rerank_top_k: int = 4
-    chunk_size: int = 900
+    chunk_size: int = 800
     chunk_overlap: int = 120
 
     # --- vision ---
     ocr_engine: str = "auto"  # "auto" | "tesseract" | "paddle" | "none"
+    tesseract_cmd: str = ""
 
     # --- storage ---
     upload_dir: Path = BASE_DIR / "uploads"
     data_dir: Path = BASE_DIR / "data"
+    raw_data_dir: Path = BASE_DIR / "data" / "raw"
+    processed_data_dir: Path = BASE_DIR / "data" / "processed"
+    documents_dir: Path = BASE_DIR / "data" / "documents"
+    uploads_dir: Path = BASE_DIR / "data" / "uploads"
+    vector_db_dir: Path = BASE_DIR / "vector_db"
 
 
 @lru_cache
@@ -66,5 +77,15 @@ def get_settings() -> Settings:
 
 settings = get_settings()
 
-for _d in (settings.upload_dir, settings.data_dir):
+for _d in (
+    settings.upload_dir,
+    settings.data_dir,
+    settings.raw_data_dir,
+    settings.processed_data_dir,
+    settings.documents_dir,
+    settings.uploads_dir,
+    settings.vector_db_dir,
+    settings.vector_db_dir / "faiss",
+    settings.vector_db_dir / "bm25",
+):
     _d.mkdir(parents=True, exist_ok=True)

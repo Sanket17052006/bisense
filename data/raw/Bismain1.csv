@@ -1,0 +1,82 @@
+﻿record_id,is_number,standard_title,standard_year,revision_status,amendment,reaffirmation,committee,classification,source_url
+1,IS 12742 : 1989,Guide for de,1989,Reviewed/Reaffirmed,0,2023,FAD 30,Guide,BIS Know Your Standard
+2,IS 12918 : 1990,Guide for rem,1990,Reviewed/Reaffirmed,0,2022,FAD 30,Guide,BIS Know Your Standard
+3,IS 14724 : 1999,Water Purifi,1999,Reviewed,2,2023,FAD 30,Product Specification,BIS Know Your Standard
+4,IS 16240 : 2023,Reverse Osm,2023,First Revision,1,,FAD 30,Product Specification,BIS Know Your Standard
+5,IS 18183 : 2023,Point of use,2023,New,0,,FAD 30,Product Specification,BIS Know Your Standard
+6,IS 19197 : 2025,Ultrafiltratio,2025,New,0,,FAD 30,Product Specification,BIS Know Your Standard
+7,IS 7402 : 2011,Ceramic wat,2011,Reviewed,1,2021,FAD 30,Product Specification,BIS Know Your Standard
+8,IS 10048 : 2024,Rice Length,2024,Third Revision,0,,FAD 20,Product Specification,BIS Know Your Standard
+9,IS 10507 : 2024,Paddy Separ,2024,Second Revision,0,,FAD 20,Product Specification,BIS Know Your Standard
+10,IS 10520 : 2024,Agricultural,2024,Second Revision,0,,FAD 20,Product Specification,BIS Know Your Standard
+11,IS 11041 : 1984,Specification,1984,Reviewed,0,2020,FAD 20,Product Specification,BIS Know Your Standard
+12,IS 11459 : 2024,Power-Oper,2024,First Revision,0,,FAD 20,Product Specification,BIS Know Your Standard
+13,IS 11787 : 2024,Paddy Dehu,2024,First Revision,0,,FAD 20,Product Specification,BIS Know Your Standard
+14,IS 11834 : 2023,Rice Milling,2023,First Revision,0,,FAD 20,Code/Guide,BIS Know Your Standard
+15,IS 12396 : 2024,Paddy Clean,2024,First Revision,0,,FAD 20,Product Specification,BIS Know Your Standard
+16,IS 15561 : 2005,Sugarcane C,2005,Reviewed,1,2020,FAD 20,Safety Requirements,BIS Know Your Standard
+17,IS 15829 : 2009,Cassava Chip,2009,Reviewed,0,2020,FAD 20,Product Specification,BIS Know Your Standard
+18,IS 18313 : 2023,Dehusker Sh,2023,New,0,,FAD 20,Product Specification,BIS Know Your Standard
+19,IS 19039 : 2023,Cleaner Cum,2023,New,0,,FAD 20,Product Specification,BIS Know Your Standard
+20,IS 19129 : 2025,Seeds and G,2025,New,0,,FAD 20,Glossary,BIS Know Your Standard
+21,IS 10388 : 1982,Corrugated,1982,Reviewed/Reaffirmed,0,2020,CED 13,Product Specification,BIS Know Your Standard
+22,IS 10439 : 1983,Code of prac,1983,Reviewed,0,2020,CED 13,Code of Practice,BIS Know Your Standard
+23,IS 10959 : 2024,Sealants for,2024,Second Revision,0,,CED 13,Glossary,BIS Know Your Standard
+24,IS 11433 (PaOne,part gu,1985,Reviewed,0,2020,CED 13,Product Specification,BIS Know Your Standard
+25,IS 12118 (PaTwo,part po,1987,Reviewed,0,2023,CED 13,Product Specification,BIS Know Your Standard
+26,IS 12727 : 1989,No-Fines Cas,1989,Reviewed,0,2020,CED 13,Code of Practice,BIS Know Your Standard
+27,IS 1414 : 1989,Fixing of Wa,1989,First Revision,0,2024,CED 13,Code of Practice,BIS Know Your Standard
+28,IS 15912 : 2018,Structural D,2018,First Revision,0,2022,CED 13,Code of Practice,BIS Know Your Standard
+29,IS 16231 (PaUse,of Glass,2019,First Revision,0,2024,CED 13,Code of Practice,BIS Know Your Standard
+30,IS 2212 : 1991,Brick Works,1991,First Revision,0,2024,CED 13,Code of Practice,BIS Know Your Standard
+31,IS 6313 (PartAnti,Termite,1981,First Revision,0,2020,CED 13,Code of Practice,BIS Know Your Standard
+32,IS 883 : 2016,Design of Str,2016,Fifth Revision,0,2021,CED 13,Code of Practice,BIS Know Your Standard
+33,IS 12742 : 1989,Guide for de,1989,Reviewed,0,2023,FAD 30,Guide,BIS Know Your Standard
+34,IS 19194 : 2025,Root and tu,2025,New,0,,FAD 20,Product Specification,BIS Know Your Standard
+35,IS 8427 : 2023,Agricultural,2023,Second Revision,0,,FAD 20,Product Specification,BIS Know Your Standard
+36,IS 10892 : 1984,Recommend,1984,Reviewed/Reaffirmed,0,2020,FAD 20,Guide,BIS Program of Work (FAD 20)
+37,IS 11032 : 2021,Rotary Scree,2021,New,0,,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+38,IS 11473 : 2002,Groundnut D,2002,First Revision,0,2022,FAD 20,Test Code,BIS Program of Work (FAD 20)
+39,IS 12064 : 2023,Paddy Parbo,2023,First Revision,0,,FAD 20,Code of Practice,BIS Program of Work (FAD 20)
+40,IS 12411 : 2024,Paddy Dehu,2024,First Revision,0,,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+41,IS 12576 : 1989,Seed Proces,1989,Reviewed/Reaffirmed,1,2020,FAD 20,Test Code,BIS Program of Work (FAD 20)
+42,IS 12792 : 2024,Agricultural,2024,First Revision,0,,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+43,IS 12833 : 1989,Agricultural,1989,Reviewed/Reaffirmed,0,2020,FAD 20,Code/Guide,BIS Program of Work (FAD 20)
+44,IS 13793 : 1993,Agricultural,1993,Reviewed/Reaffirmed,1,2020,FAD 20,Code/Guide,BIS Program of Work (FAD 20)
+45,IS 14442 : 2024,Agricultural,2024,First Revision,0,,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+46,IS 14460 : 2024,Seed Proces,2024,First Revision,0,,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+47,IS 14603 : 2023,Potato Grad,2023,First Revision,0,,FAD 20,Test Code,BIS Program of Work (FAD 20)
+48,IS 1511 : 1979,Specification,1979,Second Revision,3,2022,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+49,IS 15542 : 2005,Power-Oper,2005,Reviewed/Reaffirmed,0,2020,FAD 20,Safety Requirements,BIS Program of Work (FAD 20)
+50,IS 15831 : 2009,Grader - Citr,2009,Reviewed/Reaffirmed,0,2020,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+51,IS 15855 : 2010,Cotton Seed,2010,Reviewed/Reaffirmed,0,2020,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+52,IS 15856 : 2010,Cotton Seed,2010,Reviewed/Reaffirmed,0,2020,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+53,IS 15857 : 2009,Cotton Seed,2009,Reviewed/Reaffirmed,0,2020,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+54,IS 15858 : 2013,Cotton Seed,2013,Reviewed/Reaffirmed,0,2023,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+55,IS 15859 : 2013,Cotton Seed,2013,Reviewed/Reaffirmed,0,2023,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+56,IS 15860 : 2013,Cotton Seed,2013,Reviewed/Reaffirmed,0,2023,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+57,IS 15861 : 2013,Cotton Seed,2013,Reviewed/Reaffirmed,0,2023,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+58,IS 15862 : 2013,Cotton Seed,2013,Reviewed/Reaffirmed,0,2023,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+59,IS 15863 : 2009,Cotton Seed,2009,Reviewed/Reaffirmed,0,2020,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+60,IS 17754 (PaAgricultural,,2022,New,0,,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+61,IS 17754 (PaAgricultural,,2022,New,0,,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+62,IS 17853 : 2022,Equipment f,2022,New,0,,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+63,IS 17854 : 2022,Equipment f,2022,New,1,,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+64,IS 18145 : 2023,Vegetable Cu,2023,New,0,,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+65,IS 18267 : 2024,Food Servin,2024,First Revision,0,,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+66,IS 1973 : 1999,Sugarcane C,1999,Third Revision,0,2020,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+67,IS 5718 : 2000,Agricultural,2000,Second Revision,0,2020,FAD 20,Test Code,BIS Program of Work (FAD 20)
+68,IS 6997 : 2021,Test Code fo,2021,New,0,,FAD 20,Test Code,BIS Program of Work (FAD 20)
+69,IS 7051 : 2023,Power-Oper,2023,First Revision,0,,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+70,IS 7052 : 1973,Test Code fo,1973,Reviewed/Reaffirmed,0,2021,FAD 20,Test Code,BIS Program of Work (FAD 20)
+71,IS 7897 : 1975,Test Code fo,1975,Reviewed/Reaffirmed,1,2022,FAD 20,Test Code,BIS Program of Work (FAD 20)
+72,IS 7898 : 2024,Manually-Op,2024,Third Revision,0,,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+73,IS 8108 (PartMethods,of,2019,Second Revision,0,,FAD 20,Methods of Test,BIS Program of Work (FAD 20)
+74,IS 8108 (PartTest,Code fo,1984,Reviewed/Reaffirmed,0,2022,FAD 20,Test Code,BIS Program of Work (FAD 20)
+75,IS 8108 (PartTest,Code fo,1985,Reviewed/Reaffirmed,0,2022,FAD 20,Test Code,BIS Program of Work (FAD 20)
+76,IS 8420 : 2000,Grain Dryers,2000,First Revision,0,2020,FAD 20,Glossary,BIS Program of Work (FAD 20)
+77,IS 8440 : 2023,Paddy Clean,2023,New,0,,FAD 20,Test Code,BIS Program of Work (FAD 20)
+78,IS 8824 (PartElectrical,Mo,2022,First Revision,0,,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+79,IS 9049 : 2023,Agricultural,2023,Second Revision,0,,FAD 20,Test Code,BIS Program of Work (FAD 20)
+80,IS 9555 : 1999,Rice Polisher,1999,Second Revision,0,2020,FAD 20,Product Specification,BIS Program of Work (FAD 20)
+81,IS 9981 : 2020,Agricultural,2020,Second Revision,0,,FAD 20,Glossary,BIS Program of Work (FAD 20)

@@ -24,6 +24,7 @@ services:
       SECRET_KEY: ${SECRET_KEY:-change-me-in-prod}
       ENV: docker
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.groq.com/openai/v1}
       LLM_MODEL: ${LLM_MODEL:-openai/gpt-oss-120b}
     ports:

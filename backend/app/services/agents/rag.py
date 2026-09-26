@@ -2,14 +2,19 @@ from __future__ import annotations
 
 from typing import Any
 
+try:
+    from app.rag.pipeline.retrieval_pipeline import retrieve as rag_retrieve
+except ImportError:
+    rag_retrieve = None
+
 
 class RAGService:
     """
-    Interface for the retrieval layer owned by Member 3.
-
-    Member 2 does not implement document retrieval here.
-    This class provides a clean seam for the agent pipeline.
+    RAG Service that wraps the complete RAG pipeline.
     """
+
+    def __init__(self):
+        self._retrieve_fn = rag_retrieve
 
     def retrieve(
         self,
@@ -19,11 +24,21 @@ class RAGService:
     ) -> list[dict[str, Any]]:
         """
         Retrieve relevant knowledge for the user's query.
-
-        The Member 3 RAG implementation can replace or extend this method.
-        Until then, return an empty result rather than inventing sources.
         """
-        return []
+        if self._retrieve_fn is None:
+            return []
+
+        try:
+            # Don't filter by doc_type - let hybrid search handle relevance
+            # The intent-based filtering was causing issues because intent names
+            # don't match the actual doc_type values in the index.
+            doc_type = None
+
+            results = self._retrieve_fn(query, top_k=limit, doc_type=doc_type)
+            return results
+        except Exception as e:
+            print(f"[RAGService] Retrieval error: {e}")
+            return []
 
     @staticmethod
     def format_context(sources: list[dict[str, Any]]) -> str:
@@ -34,8 +49,8 @@ class RAGService:
         sections: list[str] = []
 
         for source in sources:
-            title = source.get("title", "Untitled source")
-            content = source.get("content", "")
+            title = source.get("title") or source.get("source", "Untitled source")
+            content = source.get("content") or source.get("text", "")
 
             if content:
                 sections.append(f"Source: {title}\n{content}")
