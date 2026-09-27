@@ -34,6 +34,10 @@ from app.schemas.schemas import (
     UserOut,
     UserRegister,
 )
+from app.db.seed import (
+    seed_standards, seed_labs, seed_qcos, seed_schemes, seed_rag_index
+)
+from app.db.session import SessionLocal
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -66,6 +70,22 @@ def _build_tokens(user: User) -> TokenOut:
     )
 
 
+def _ensure_seeded() -> None:
+    """Seed database if empty (called on first register/login)."""
+    from app.models.models import Standard
+    db = SessionLocal()
+    try:
+        if db.query(Standard).count() == 0:
+            seed_standards(db)
+            seed_labs(db)
+            seed_qcos(db)
+            seed_schemes(db)
+            seed_rag_index(db)
+            db.commit()
+    finally:
+        db.close()
+
+
 def _blacklisted(db: Session, jti: str) -> bool:
     return (
         db.execute(select(TokenBlacklist).where(TokenBlacklist.jti == jti))
@@ -92,6 +112,7 @@ def _revoke(db: Session, token: str) -> None:
 
 @router.post("/register", response_model=TokenOut, status_code=201)
 def register(payload: UserRegister, db: Session = Depends(get_db)):
+    _ensure_seeded()
     exists = db.execute(select(User).where(User.email == payload.email)).scalar_one_or_none()
     if exists:
         raise HTTPException(status.HTTP_409_CONFLICT, "Email already registered")
@@ -113,6 +134,7 @@ def login(
     request: Request,
     db: Session = Depends(get_db),
 ):
+    _ensure_seeded()
     client_ip = request.client.host if request.client else "unknown"
     if client_ip != "unknown" and not login_limiter.is_allowed(client_ip):
         raise HTTPException(
