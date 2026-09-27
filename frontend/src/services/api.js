@@ -82,12 +82,16 @@ export const api = {
     checkDetail: async (id) => demoMode ? ({ status: "demo" }) : (await client.get(`/api/compliance/checks/${id}`)).data,
   },
   compare: async (payload) => demoMode ? ({ status: "demo" }) : (await client.post("/api/compare", payload)).data,
-  laboratories: async (params) => demoMode ? demo.labs : (await client.get("/api/laboratories", { params })).data,
+  laboratories: {
+    list: async (params) => demoMode ? demo.labs : (await client.get("/api/labs", { params })).data,
+    detail: async (id) => demoMode ? null : (await client.get(`/api/labs/${id}`)).data,
+  },
   qco: async (params) => demoMode ? [] : (await client.get("/api/qco", { params })).data,
   hallmarking: async (params) => demoMode ? [] : (await client.get("/api/hallmarking", { params })).data,
   consumer: async (params) => demoMode ? [] : (await client.get("/api/consumer", { params })).data,
   certification: async (params) => demoMode ? demo.certification : (await client.get("/api/certification/roadmap", { params })).data,
   history: async () => demoMode ? demo.history : (await client.get("/api/history")).data,
+  reports: async (params) => demoMode ? [] : (await client.get("/api/documents", { params })).data,
   health: async () => demoMode ? { status: "ok", db: "sqlite" } : (await client.get("/api/health")).data,
 };
 

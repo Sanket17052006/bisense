@@ -1142,12 +1142,90 @@ function Certification() {
 ========================================================= */
 
 function Laboratories() {
+  const [labs, setLabs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [filters, setFilters] = useState({ state: "", city: "", product: "", query: "" });
+
+  const loadLabs = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.laboratories.list(filters);
+      setLabs(data.items || data);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLabs();
+  }, []);
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    loadLabs();
+  };
+
   return (
-    <SimpleFeature type="BIS SERVICES" title="Laboratory Finder" sub="Discover laboratories and testing context by standard or product." icon={FlaskConical} items={[
-      { tag: "SEARCH", title: "Find a laboratory", desc: "Search by IS number, product or location when your backend is connected." },
-      { tag: "CAPABILITY", title: "Testing capability", desc: "Review supported standards and available testing context." },
-      { tag: "DETAILS", title: "Laboratory profile", desc: "Keep contact and service information in one place." }
-    ]} />
+    <>
+      <PageHead eyebrow="BIS SERVICES" title="Laboratory Finder" sub="Discover BIS/NABL recognized laboratories by location, product or standard." />
+      <Card style={{marginBottom: 20}}>
+        <form onSubmit={handleSearch} style={{display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end"}}>
+          <div style={{flex: 1, minWidth: 200}}>
+            <label style={{display: "block", marginBottom: 6, fontSize: 13, fontWeight: 600}}>State</label>
+            <input value={filters.state} onChange={e => handleFilterChange("state", e.target.value)} placeholder="e.g., Maharashtra" style={{width: "100%", padding: "10px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)"}} />
+          </div>
+          <div style={{flex: 1, minWidth: 200}}>
+            <label style={{display: "block", marginBottom: 6, fontSize: 13, fontWeight: 600}}>City</label>
+            <input value={filters.city} onChange={e => handleFilterChange("city", e.target.value)} placeholder="e.g., Mumbai" style={{width: "100%", padding: "10px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)"}} />
+          </div>
+          <div style={{flex: 1, minWidth: 200}}>
+            <label style={{display: "block", marginBottom: 6, fontSize: 13, fontWeight: 600}}>Product / Standard</label>
+            <input value={filters.product} onChange={e => handleFilterChange("product", e.target.value)} placeholder="e.g., IS 302, Water Heaters" style={{width: "100%", padding: "10px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)"}} />
+          </div>
+          <div style={{flex: 1, minWidth: 200}}>
+            <label style={{display: "block", marginBottom: 6, fontSize: 13, fontWeight: 600}}>Free Text Search</label>
+            <input value={filters.query} onChange={e => handleFilterChange("query", e.target.value)} placeholder="Any keyword..." style={{width: "100%", padding: "10px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)"}} />
+          </div>
+          <button type="submit" className="primary" disabled={loading}>{loading ? "Searching…" : "Search"}</button>
+        </form>
+      </Card>
+      {error && <Card style={{marginBottom: 20}}><div style={{color: "var(--danger)"}}>Error: {error.message || error}</div></Card>}
+      {loading ? (
+        <div className="loading-screen"><div className="loader"></div></div>
+      ) : labs.length === 0 ? (
+        <Card><div className="empty"><FlaskConical /><h3>No laboratories found</h3><p>Try adjusting your search criteria.</p></div></Card>
+      ) : (
+        <div style={{display: "grid", gap: 16}}>
+          {labs.map((lab) => (
+            <Card key={lab.id} style={{padding: 20}}>
+              <div style={{display: "flex", gap: 16, flexWrap: "wrap"}}>
+                <div style={{flex: 1, minWidth: 250}}>
+                  <h3 style={{margin: "0 0 8px", fontSize: 18}}>{lab.name}</h3>
+                  <div style={{display: "flex", gap: 16, flexWrap: "wrap", color: "var(--muted)", fontSize: 13, marginBottom: 8}}>
+                    {lab.city && <span><b>City:</b> {lab.city}</span>}
+                    {lab.state && <span><b>State:</b> {lab.state}</span>}
+                    {lab.pincode && <span><b>PIN:</b> {lab.pincode}</span>}
+                    {lab.distance_km && <span><b>Distance:</b> {lab.distance_km.toFixed(1)} km</span>}
+                  </div>
+                  {lab.address && <div style={{fontSize: 13, color: "var(--muted)", marginBottom: 8}}><b>Address:</b> {lab.address}</div>}
+                  {lab.accreditations && <div style={{fontSize: 13, color: "var(--muted)", marginBottom: 8}}><b>Accreditations:</b> {lab.accreditations}</div>}
+                  {lab.products && <div style={{fontSize: 13, color: "var(--muted)}}><b>Products/Standards:</b> {lab.products}</div>}
+                  {lab.contact && <div style={{fontSize: 13, color: "var(--muted)", marginTop: 8}}><b>Contact:</b> {lab.contact}</div>}
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -1156,22 +1234,151 @@ function Laboratories() {
 ========================================================= */
 
 function Compare() {
+  const [standards, setStandards] = useState([]);
+  const [selectedA, setSelectedA] = useState(null);
+  const [selectedB, setSelectedB] = useState(null);
+  const [searchA, setSearchA] = useState("");
+  const [searchB, setSearchB] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const searchStandards = async (query, which) => {
+    if (!query.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.standards({ q: query, limit: 10 });
+      setStandards(data.items || data);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelect = (std, which) => {
+    if (which === "A") {
+      setSelectedA(std);
+      setSearchA(`${std.is_number} - ${std.title}`);
+    } else {
+      setSelectedB(std);
+      setSearchB(`${std.is_number} - ${std.title}`);
+    }
+    setStandards([]);
+  };
+
   return (
     <>
       <PageHead eyebrow="ANALYZE" title="Compare Standards" sub="Put two standards side-by-side and inspect scope, requirements and testing context." />
-      <Card>
+      <Card style={{marginBottom: 20}}>
         <div className="compare-select">
-          <div><label>Standard A</label><input placeholder="Search IS number or title" /></div>
-          <div className="vs">VS</div>
-          <div><label>Standard B</label><input placeholder="Search IS number or title" /></div>
-        </div>
-        <div className="comparison">
-          <div><b>Scope</b><span>Choose a standard to load scope.</span></div>
-          <div><b>Requirements</b><span>Requirements will appear here.</span></div>
-          <div><b>Testing</b><span>Testing information will appear here.</span></div>
-          <div><b>Certification</b><span>Certification context will appear here.</span></div>
+          <div style={{flex: 1, minWidth: 300}}>
+            <label style={{display: "block", marginBottom: 6, fontSize: 13, fontWeight: 600}}>Standard A</label>
+            <div style={{position: "relative"}}>
+              <input
+                value={searchA}
+                onChange={e => { setSearchA(e.target.value); searchStandards(e.target.value, "A"); }}
+                placeholder="Search IS number or title..."
+                style={{width: "100%", padding: "12px 16px", borderRadius: 12, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)"}}
+              />
+              {standards.length > 0 && (
+                <div style={{position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, maxHeight: 300, overflow: "auto", zIndex: 10}}>
+                  {standards.map((s) => (
+                    <div key={s.id} onClick={() => handleSelect(s, "A")} style={{padding: "12px 16px", cursor: "pointer", borderBottom: "1px solid var(--border)"}}>
+                      <div style={{fontWeight: 600, fontSize: 14}}>{s.is_number}</div>
+                      <div style={{fontSize: 12, color: "var(--muted)"}}>{s.title}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="vs" style={{display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: "var(--muted)", fontSize: 18, padding: "0 20px"}}>VS</div>
+          <div style={{flex: 1, minWidth: 300}}>
+            <label style={{display: "block", marginBottom: 6, fontSize: 13, fontWeight: 600}}>Standard B</label>
+            <div style={{position: "relative"}}>
+              <input
+                value={searchB}
+                onChange={e => { setSearchB(e.target.value); searchStandards(e.target.value, "B"); }}
+                placeholder="Search IS number or title..."
+                style={{width: "100%", padding: "12px 16px", borderRadius: 12, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)"}}
+              />
+              {standards.length > 0 && (
+                <div style={{position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, maxHeight: 300, overflow: "auto", zIndex: 10}}>
+                  {standards.map((s) => (
+                    <div key={s.id} onClick={() => handleSelect(s, "B")} style={{padding: "12px 16px", cursor: "pointer", borderBottom: "1px solid var(--border)"}}>
+                      <div style={{fontWeight: 600, fontSize: 14}}>{s.is_number}</div>
+                      <div style={{fontSize: 12, color: "var(--muted)"}}>{s.title}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </Card>
+
+      {(selectedA || selectedB) && (
+        <div className="comparison" style={{display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 20}}>
+          {selectedA && (
+            <Card>
+              <div className="card-title"><h3>{selectedA.is_number}</h3></div>
+              <div style={{marginTop: 12}}>
+                <div style={{fontSize: 14, color: "var(--muted)", marginBottom: 16}}>{selectedA.title}</div>
+                <div style={{marginBottom: 16}}><b>Scope:</b> {selectedA.scope || "Not available"}</div>
+                <div style={{marginBottom: 16}}><b>Category:</b> {selectedA.category || "—"}</div>
+                <div style={{marginBottom: 16}}><b>Status:</b> <Badge tone={selectedA.status === "Active" ? "green" : "neutral"}>{selectedA.status || "—"}</Badge></div>
+                <div><b>Certification:</b> {selectedA.certification_type || "—"}</div>
+              </div>
+            </Card>
+          )}
+          {selectedB && (
+            <Card>
+              <div className="card-title"><h3>{selectedB.is_number}</h3></div>
+              <div style={{marginTop: 12}}>
+                <div style={{fontSize: 14, color: "var(--muted)", marginBottom: 16}}>{selectedB.title}</div>
+                <div style={{marginBottom: 16}}><b>Scope:</b> {selectedB.scope || "Not available"}</div>
+                <div style={{marginBottom: 16}}><b>Category:</b> {selectedB.category || "—"}</div>
+                <div style={{marginBottom: 16}}><b>Status:</b> <Badge tone={selectedB.status === "Active" ? "green" : "neutral"}>{selectedB.status || "—"}</Badge></div>
+                <div><b>Certification:</b> {selectedB.certification_type || "—"}</div>
+              </div>
+            </Card>
+          )}
+          {selectedA && selectedB && (
+            <>
+              <Card style={{gridColumn: "span 2"}}>
+                <div className="card-title"><h3>Comparison</h3></div>
+                <div style={{marginTop: 16, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16}}>
+                  <div>
+                    <div style={{fontSize: 11, textTransform: "uppercase", letterSpacing: 1, color: "var(--muted)", marginBottom: 8}}>Requirements</div>
+                    <div style={{fontSize: 13}}>Side-by-side requirement comparison requires detailed standard data.</div>
+                  </div>
+                  <div>
+                    <div style={{fontSize: 11, textTransform: "uppercase", letterSpacing: 1, color: "var(--muted)", marginBottom: 8}}>Testing</div>
+                    <div style={{fontSize: 13}}>Testing parameter comparison requires detailed standard data.</div>
+                  </div>
+                  <div>
+                    <div style={{fontSize: 11, textTransform: "uppercase", letterSpacing: 1, color: "var(--muted)", marginBottom: 8}}>Certification</div>
+                    <div style={{fontSize: 13}}>
+                      {selectedA.certification_type || "—"} vs {selectedB.certification_type || "—"}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </>
+          )}
+        </div>
+      )}
+      {(!selectedA && !selectedB) && (
+        <Card>
+          <div className="empty" style={{textAlign: "center", padding: 60}}>
+            <div style={{fontSize: 48, marginBottom: 16}}>⚖️</div>
+            <h3>Select two standards to compare</h3>
+            <p style={{color: "var(--muted)", marginTop: 8}}>Search for standards using the inputs above</p>
+          </div>
+        </Card>
+      )}
+      {error && <Card style={{marginTop: 20}}><div style={{color: "var(--danger)"}}>Error: {error.message || error}</div></Card>}
     </>
   );
 }
@@ -1181,10 +1388,109 @@ function Compare() {
 ========================================================= */
 
 function Reports() {
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const loadReports = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.reports({ limit: 50 });
+      setReports(data.items || data);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadReports();
+  }, []);
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "—";
+    return new Date(dateStr).toLocaleDateString();
+  };
+
+  const formatSize = (bytes) => {
+    if (!bytes) return "—";
+    const kb = bytes / 1024;
+    if (kb < 1024) return `${kb.toFixed(1)} KB`;
+    return `${(kb / 1024).toFixed(2)} MB`;
+  };
+
   return (
     <>
-      <PageHead eyebrow="OUTPUTS" title="Reports" sub="Keep generated analysis and compliance reports together." />
-      <Card><div className="empty"><FileText /><h3>No reports yet</h3><p>Generate a report from a completed workflow and it will appear here.</p><button className="primary">Create report</button></div></Card>
+      <PageHead eyebrow="OUTPUTS" title="Reports" sub="Manage your uploaded documents and generated reports." />
+      <Card style={{marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12}}>
+        <div>
+          <h3 style={{margin: 0}}>Documents & Reports</h3>
+          <p style={{margin: 4, color: "var(--muted)", fontSize: 13}}>{reports.length} document(s) in your workspace</p>
+        </div>
+        <label style={{cursor: "pointer"}}>
+          <input type="file" style={{display: "none"}} onChange={async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const formData = new FormData();
+            formData.append("file", file);
+            try {
+              await fetch("/api/documents", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${localStorage.getItem("bis_access_token")}` },
+                body: formData
+              });
+              loadReports();
+            } catch (err) {
+              console.error(err);
+            }
+          }} />
+          <button className="primary" style={{display: "inline-flex", alignItems: "center", gap: 8}}>+ Upload Document</button>
+        </label>
+      </Card>
+      {error && <Card style={{marginBottom: 20}}><div style={{color: "var(--danger)"}}>Error: {error.message || error}</div></Card>}
+      {loading ? (
+        <div className="loading-screen"><div className="loader"></div></div>
+      ) : reports.length === 0 ? (
+        <Card><div className="empty"><FileText /><h3>No reports yet</h3><p>Upload a document or generate a report from a completed workflow.</p></div></Card>
+      ) : (
+        <Card>
+          <div style={{overflowX: "auto"}}>
+            <table style={{width: "100%", borderCollapse: "collapse"}}>
+              <thead>
+                <tr style={{borderBottom: "1px solid var(--border)"}}>
+                  <th style={{textAlign: "left", padding: "12px 16px", fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1}}>Title</th>
+                  <th style={{textAlign: "left", padding: "12px 16px", fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1}}>Type</th>
+                  <th style={{textAlign: "left", padding: "12px 16px", fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1}}>Standard</th>
+                  <th style={{textAlign: "left", padding: "12px 16px", fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1}}>Status</th>
+                  <th style={{textAlign: "left", padding: "12px 16px", fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1}}>Size</th>
+                  <th style={{textAlign: "left", padding: "12px 16px", fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1}}>Created</th>
+                  <th style={{textAlign: "left", padding: "12px 16px", fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1}}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reports.map((doc) => (
+                  <tr key={doc.id} style={{borderBottom: "1px solid var(--border)"}}>
+                    <td style={{padding: "12px 16px", fontSize: 13, fontWeight: 500}}>{doc.title}</td>
+                    <td style={{padding: "12px 16px", fontSize: 12, textTransform: "capitalize"}}>{doc.doc_type || "standard"}</td>
+                    <td style={{padding: "12px 16px", fontSize: 12, fontFamily: "monospace", color: "var(--muted)"}}>{doc.is_number || "—"}</td>
+                    <td style={{padding: "12px 16px"}}><Badge tone={doc.status === "indexed" ? "green" : doc.status === "pending" ? "yellow" : "red"}>{doc.status || "pending"}</Badge></td>
+                    <td style={{padding: "12px 16px", fontSize: 12, color: "var(--muted)"}}>{formatSize(doc.file_size)}</td>
+                    <td style={{padding: "12px 16px", fontSize: 12, color: "var(--muted)"}}>{formatDate(doc.created_at)}</td>
+                    <td style={{padding: "12px 16px"}}>
+                      <div style={{display: "flex", gap: 8}}>
+                        <button className="secondary" style={{padding: "6px 12px", fontSize: 11}}>View</button>
+                        <button className="secondary" style={{padding: "6px 12px", fontSize: 11, color: "var(--danger)", borderColor: "var(--danger)"}}>Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
     </>
   );
 }
@@ -1195,16 +1501,51 @@ function Reports() {
 
 function History() {
   const [history, setHistory] = useState([]);
-  useEffect(() => { api.history().then(setHistory).catch(() => setHistory([])); }, []);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const loadHistory = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.history();
+      setHistory(data);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "—";
+    const date = new Date(dateStr);
+    return date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
+  if (loading) return <div className="loading-screen"><div className="loader"></div></div>;
+
   return (
     <>
       <PageHead eyebrow="ACTIVITY" title="History" sub="A timeline of your searches, analyses and generated outputs." />
+      {error && <Card style={{marginBottom: 20}}><div style={{color: "var(--danger)"}}>Error: {error.message || error}</div></Card>}
       <Card>
         {history.length === 0 ? (
           <div className="empty"><Clock3 /><h3>No history yet</h3><p>Your activity will appear here once you start using BISense.</p></div>
         ) : (
           history.map((item, i) => (
-            <div key={i} className="history-row"><Clock3 /><div><b>{item.title || item.query}</b><span>{item.meta || item.intent}</span></div><small>{item.time || item.created_at}</small></div>
+            <div key={i} className="history-row" style={{display: "flex", alignItems: "center", gap: 16, padding: "16px 0", borderBottom: i < history.length - 1 ? "1px solid var(--border)" : "none"}}>
+              <Clock3 style={{color: "var(--muted)"}} />
+              <div style={{flex: 1, minWidth: 0}}>
+                <div style={{fontWeight: 600, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}}>{item.title || item.query || "Untitled"}</div>
+                <div style={{fontSize: 12, color: "var(--muted)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}}>{item.meta || item.intent || "Activity"}</div>
+              </div>
+              <small style={{color: "var(--muted)", whiteSpace: "nowrap"}}>{formatDate(item.time || item.created_at)}</small>
+            </div>
           ))
         )}
       </Card>
@@ -1220,11 +1561,16 @@ function Profile() {
   const { user } = useAuth();
   return (
     <Card>
-      <div className="profile">
-        <div className="profile-avatar">{user?.name?.[0]?.toUpperCase() || "U"}</div>
-        <h2>{user?.name || "User"}</h2>
-        <p>{user?.email || "BISense workspace account"}</p>
+      <div className="profile" style={{textAlign: "center", padding: 40}}>
+        <div className="profile-avatar" style={{width: 80, height: 80, fontSize: 28, margin: "0 auto 20px"}}>{user?.name?.[0]?.toUpperCase() || "U"}</div>
+        <h2 style={{margin: "0 0 8px"}}>{user?.name || "User"}</h2>
+        <p style={{margin: "0 0 16px", color: "var(--muted)"}}>{user?.email || "BISense workspace account"}</p>
         <Badge tone="green">Active</Badge>
+        <div style={{marginTop: 30, paddingTop: 20, borderTop: "1px solid var(--border)", textAlign: "left"}}>
+          <div style={{marginBottom: 12}}><b>Role:</b> {user?.role || "user"}</div>
+          <div style={{marginBottom: 12}}><b>Member since:</b> {user?.created_at ? new Date(user.created_at).toLocaleDateString() : "—"}</div>
+          <div><b>User ID:</b> <code style={{fontSize: 12, color: "var(--muted)"}}>{user?.id || "—"}</code></div>
+        </div>
       </div>
     </Card>
   );
@@ -1236,25 +1582,100 @@ function Profile() {
 
 function Settings() {
   const { user } = useAuth();
-  const settings = [
-    { title: "Appearance", description: "Light or dark interface" },
-    { title: "Notifications", description: "Activity and report alerts" },
-    { title: "AI response preferences", description: "Response detail and source display" },
-    { title: "Data & privacy", description: "Workspace data controls" }
-  ];
+  const [dark, setDark] = useState(localStorage.getItem("bis-dark") === "1");
+  const [notifications, setNotifications] = useState(true);
+  const [aiDetail, setAiDetail] = useState("standard");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+    localStorage.setItem("bis-dark", dark ? "1" : "0");
+  }, [dark]);
+
+  const saveSettings = async () => {
+    setSaving(true);
+    // In a real app, this would call an API to save settings
+    await new Promise(r => setTimeout(r, 500));
+    setSaving(false);
+  };
+
   return (
     <>
       <PageHead eyebrow="PREFERENCES" title="Settings" sub="Control your BISense workspace experience." />
-      <Card>
-        {settings.map(s => (
-          <div key={s.title} className="setting-row">
-            <div><b>{s.title}</b><span>{s.description}</span></div>
-            <button className="secondary">Configure</button>
+      <Card style={{marginBottom: 20}}>
+        <div className="card-title"><h3>Account</h3></div>
+        <div style={{display: "flex", alignItems: "center", gap: 16, padding: 16, background: "var(--surface)", borderRadius: 12, marginBottom: 16}}>
+          <div className="profile-avatar" style={{width: 56, height: 56, fontSize: 20}}>{user?.name?.[0]?.toUpperCase() || "U"}</div>
+          <div style={{flex: 1}}>
+            <h2 style={{margin: "0 0 4px"}}>{user?.name || "User"}</h2>
+            <p style={{margin: 0, color: "var(--muted)"}}>{user?.email || "BISense workspace account"}</p>
           </div>
-        ))}
+          <Badge tone="green">Active</Badge>
+        </div>
+        <div className="setting-row">
+          <div><b>Email</b><span>{user?.email}</span></div>
+          <button className="secondary" disabled>Manage</button>
+        </div>
       </Card>
-      <Card style={{ marginTop: 20 }}>
-        <div className="setting-row"><div><b>Account</b><span>{user?.email}</span></div><button className="secondary">Manage</button></div>
+
+      <Card style={{marginBottom: 20}}>
+        <div className="card-title"><h3>Appearance</h3></div>
+        <div className="setting-row" style={{alignItems: "center"}}>
+          <div><b>Dark Mode</b><span>Toggle between light and dark interface</span></div>
+          <label style={{position: "relative", width: 56, height: 28, flexShrink: 0}}>
+            <input type="checkbox" checked={dark} onChange={e => setDark(e.target.checked)} style={{position: "absolute", opacity: 0, width: 0, height: 0}} />
+            <span style={{position: "absolute", inset: 0, background: dark ? "#b5121b" : "#ddd", borderRadius: 14, transition: "background 0.2s"}}>
+              <span style={{position: "absolute", top: 2, left: dark ? 30 : 2, width: 24, height: 24, background: "white", borderRadius: "50%", transition: "left 0.2s", boxShadow: "0 2px 4px rgba(0,0,0,0.2)"}} />
+            </span>
+          </label>
+        </div>
+      </Card>
+
+      <Card style={{marginBottom: 20}}>
+        <div className="card-title"><h3>Notifications</h3></div>
+        <div className="setting-row" style={{alignItems: "center"}}>
+          <div><b>Activity & Report Alerts</b><span>Receive notifications for completed workflows and reports</span></div>
+          <label style={{position: "relative", width: 56, height: 28, flexShrink: 0}}>
+            <input type="checkbox" checked={notifications} onChange={e => setNotifications(e.target.checked)} style={{position: "absolute", opacity: 0, width: 0, height: 0}} />
+            <span style={{position: "absolute", inset: 0, background: notifications ? "#b5121b" : "#ddd", borderRadius: 14, transition: "background 0.2s"}}>
+              <span style={{position: "absolute", top: 2, left: notifications ? 30 : 2, width: 24, height: 24, background: "white", borderRadius: "50%", transition: "left 0.2s", boxShadow: "0 2px 4px rgba(0,0,0,0.2)"}} />
+            </span>
+          </label>
+        </div>
+      </Card>
+
+      <Card style={{marginBottom: 20}}>
+        <div className="card-title"><h3>AI Response Preferences</h3></div>
+        <div className="setting-row">
+          <div><b>Response Detail Level</b><span>Control how detailed AI responses are</span></div>
+          <select value={aiDetail} onChange={e => setAiDetail(e.target.value)} style={{padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: 13}}>
+            <option value="brief">Brief - Concise answers</option>
+            <option value="standard">Standard - Balanced detail</option>
+            <option value="detailed">Detailed - Comprehensive responses</option>
+          </select>
+        </div>
+      </Card>
+
+      <Card style={{marginBottom: 20}}>
+        <div className="card-title"><h3>Data & Privacy</h3></div>
+        <div className="setting-row">
+          <div><b>Workspace Data</b><span>Manage your data and privacy settings</span></div>
+          <button className="secondary" onClick={saveSettings} disabled={saving}>{saving ? "Saving…" : "Configure"}</button>
+        </div>
+        <div className="setting-row">
+          <div><b>Export Data</b><span>Download your workspace data</span></div>
+          <button className="secondary">Export</button>
+        </div>
+        <div className="setting-row">
+          <div><b>Delete Account</b><span>Permanently delete your account and all data</span></div>
+          <button className="secondary" style={{color: "var(--danger)", borderColor: "var(--danger)"}}>Delete</button>
+        </div>
+      </Card>
+
+      <Card>
+        <div style={{display: "flex", justifyContent: "flex-end", gap: 12, paddingTop: 16}}>
+          <button className="secondary" onClick={saveSettings} disabled={saving}>{saving ? "Saving…" : "Save All Settings"}</button>
+        </div>
       </Card>
     </>
   );

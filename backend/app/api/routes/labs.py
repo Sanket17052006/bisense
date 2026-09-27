@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import math
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
@@ -62,3 +62,15 @@ def list_labs(
     total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar_one()
     rows = db.execute(stmt.offset(skip).limit(limit)).scalars().all()
     return Page(items=[LabOut.model_validate(r) for r in rows], total=total, skip=skip, limit=limit)
+
+
+@router.get("/{lab_id}", response_model=LabOut)
+def lab_detail(
+    lab_id: str,
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    lab = db.get(Laboratory, lab_id)
+    if lab is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Laboratory not found")
+    return LabOut.model_validate(lab)
