@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import {
   Routes,
@@ -529,11 +531,11 @@ function Standards() {
           <button className="primary" onClick={() => setPage(0)}>Search</button>
         </div>
         <div className="filter-row" style={{ gap: 10, flexWrap: "wrap" }}>
-          <select value={category} onChange={e => { setCategory(e.target.value); setPage(0); }} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #e0ddd8", background: "#fff", fontSize: 13 }}>
+          <select className="filter-select" value={category} onChange={e => { setCategory(e.target.value); setPage(0); }}>
             <option value="">All categories</option>
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <select value={status} onChange={e => { setStatus(e.target.value); setPage(0); }} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #e0ddd8", background: "#fff", fontSize: 13 }}>
+          <select className="filter-select" value={status} onChange={e => { setStatus(e.target.value); setPage(0); }}>
             <option value="">All statuses</option>
             <option value="active">Active</option>
             <option value="withdrawn">Withdrawn</option>
@@ -658,9 +660,24 @@ function Standards() {
 
 function Copilot() {
   const initialQuery = new URLSearchParams(window.location.search).get("query") || "";
-  const [messages, setMessages] = useState([{ role: "assistant", text: "Hi! I'm BISense AI. Ask me about Indian Standards, BIS certification, testing, hallmarking, packaged commodities or related services." }]);
+  const [messages, setMessages] = useState(() => {
+    const saved = localStorage.getItem("bisense_chat_history");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [{ role: "assistant", text: "Hi! I'm BISense AI. Ask me about Indian Standards, BIS certification, testing, hallmarking, packaged commodities or related services." }];
+      }
+    }
+    return [{ role: "assistant", text: "Hi! I'm BISense AI. Ask me about Indian Standards, BIS certification, testing, hallmarking, packaged commodities or related services." }];
+  });
   const [input, setInput] = useState(initialQuery);
   const [busy, setBusy] = useState(false);
+  const [showSourcePanel, setShowSourcePanel] = useState(true);
+
+  useEffect(() => {
+    localStorage.setItem("bisense_chat_history", JSON.stringify(messages));
+  }, [messages]);
 
   async function send() {
     if (!input.trim() || busy) return;
@@ -679,18 +696,46 @@ function Copilot() {
   return (
     <>
       <PageHead eyebrow="AI ASSISTANT" title="BISense Copilot" sub="Ask questions about Indian Standards and BIS services." />
-      <div className="copilot-layout">
+      <div className={`copilot-layout ${!showSourcePanel ? "collapsed" : ""}`}>
         <Card className="chat-card">
           <div className="chat-head">
             <div className="ai-avatar"><Bot /></div>
             <div><b>BISense AI</b><span>Standards intelligence assistant</span></div>
             <Badge tone="green">Online</Badge>
+            <button 
+              className="icon-btn panel-toggle"
+              onClick={() => setShowSourcePanel(!showSourcePanel)}
+              title={showSourcePanel ? "Hide help panel" : "Show help panel"}
+            >
+              {showSourcePanel ? <PanelLeftClose /> : <PanelLeftOpen />}
+            </button>
+            <button 
+              className="icon-btn"
+              onClick={() => {
+                localStorage.removeItem("bisense_chat_history");
+                setMessages([{ role: "assistant", text: "Hi! I'm BISense AI. Ask me about Indian Standards, BIS certification, testing, hallmarking, packaged commodities or related services." }]);
+              }}
+              title="Clear chat history"
+            >
+              <X size={18} />
+            </button>
           </div>
           <div className="messages">
             {messages.map((msg, i) => (
               <div key={i} className={`msg ${msg.role}`}>
                 <div className="msg-avatar">{msg.role === "assistant" ? "B" : "U"}</div>
-                <div className="bubble"><span>{msg.text}</span>{msg.role === "assistant" && <small>Source-aware response • verify against official BIS sources</small>}</div>
+                <div className="bubble">
+                  {msg.role === "assistant" ? (
+                    <>
+                      <div className="markdown-content">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
+                      </div>
+                      <small>Source-aware response • verify against official BIS sources</small>
+                    </>
+                  ) : (
+                    <span>{msg.text}</span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -704,12 +749,14 @@ function Copilot() {
             <button className="send" onClick={send} type="button">{busy ? "…" : "➤"}</button>
           </div>
         </Card>
-        <Card className="source-panel">
-          <div className="card-title"><span>How BISense helps</span><Sparkles size={18} /></div>
-          <div className="feature"><ShieldCheck /><div><b>Evidence first</b><span>Keep source context alongside answers.</span></div></div>
-          <div className="feature"><Search /><div><b>Standards discovery</b><span>Search by product, number or concept.</span></div></div>
-          <div className="feature"><ClipboardCheck /><div><b>Actionable next steps</b><span>Turn information into a checklist.</span></div></div>
-        </Card>
+        {showSourcePanel && (
+          <Card className="source-panel">
+            <div className="card-title"><span>How BISense helps</span><Sparkles size={18} /></div>
+            <div className="feature"><ShieldCheck /><div><b>Evidence first</b><span>Keep source context alongside answers.</span></div></div>
+            <div className="feature"><Search /><div><b>Standards discovery</b><span>Search by product, number or concept.</span></div></div>
+            <div className="feature"><ClipboardCheck /><div><b>Actionable next steps</b><span>Turn information into a checklist.</span></div></div>
+          </Card>
+        )}
       </div>
     </>
   );
@@ -721,23 +768,130 @@ function Copilot() {
 
 function Analyzer() {
   const [file, setFile] = useState(null);
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleAnalyze = async () => {
+    if (!file) return;
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/labels/scan", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${localStorage.getItem("bis_access_token")}` },
+        body: formData
+      });
+      if (!response.ok) throw new Error("Analysis failed");
+      const data = await response.json();
+      setResult(data);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
-      <PageHead eyebrow="ANALYZE" title="Product Analyzer" sub="Upload a product image to start a standards and label review." />
+      <PageHead eyebrow="ANALYZE" title="Product Analyzer" sub="Upload a product image to extract label info and find relevant standards." />
       <div className="analyzer-grid">
         <Card className="upload-card">
           <div className="upload-icon"><PackageSearch /></div>
           <h2>Drop product image</h2>
           <p>PNG, JPG or WEBP. Use a clear photo of the label or product packaging.</p>
           <input id="file" type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0])} />
-          <label htmlFor="file" className="primary upload-btn"><UploadCloud />{file ? file.name : "Choose image"}</label>
-          <button className="secondary full" onClick={() => alert("Connect this action to your backend product-analysis endpoint.")}>Analyze product</button>
+          <label htmlFor="file" className="primary upload-btn" style={{display: "inline-flex", alignItems: "center", gap: 8, marginTop: 12, marginBottom: 12}}>
+            <UploadCloud />{file ? file.name : "Choose image"}
+          </label>
+          <button className="primary full" onClick={handleAnalyze} disabled={loading || !file} style={{marginTop: 8}}>
+            {loading ? "Analyzing…" : "Analyze product"}
+          </button>
+          {error && <div style={{color: "var(--danger)", marginTop: 12, fontSize: 13}}>Error: {error.message || error}</div>}
         </Card>
         <Card>
-          <div className="card-title"><span>Analysis workflow</span><Activity size={18} /></div>
-          {["Image & label extraction", "Potential standard matching", "Certification considerations", "Compliance checklist"].map((item, i) => (
-            <div key={item} className="step"><span>{i + 1}</span><div><b>{item}</b><small>{i === 0 ? "OCR / vision input" : i === 1 ? "Relevant IS references" : i === 2 ? "Scheme and licensing context" : "Trackable requirements"}</small></div></div>
-          ))}
+          <div className="card-title"><span>Analysis Results</span><Activity size={18} /></div>
+          {result ? (
+            <div style={{marginTop: 16}}>
+              <div style={{display: "grid", gap: 12, marginBottom: 16}}>
+                {result.extracted?.is_number && (
+                  <div style={{padding: "12px 16px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8}}>
+                    <div style={{fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4}}>IS Number Detected</div>
+                    <div style={{fontWeight: 700, fontSize: 16, fontFamily: "monospace", color: "#b5121b"}}>{result.extracted.is_number}</div>
+                  </div>
+                )}
+                {result.extracted?.licence_number && (
+                  <div style={{padding: "12px 16px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8}}>
+                    <div style={{fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4}}>Licence Number</div>
+                    <div style={{fontWeight: 700, fontSize: 14, fontFamily: "monospace"}}>{result.extracted.licence_number}</div>
+                  </div>
+                )}
+                {result.extracted?.product_name && (
+                  <div style={{padding: "12px 16px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8}}>
+                    <div style={{fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4}}>Product Name</div>
+                    <div style={{fontWeight: 600, fontSize: 14}}>{result.extracted.product_name}</div>
+                  </div>
+                )}
+                {result.extracted?.manufacturer && (
+                  <div style={{padding: "12px 16px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8}}>
+                    <div style={{fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4}}>Manufacturer</div>
+                    <div style={{fontWeight: 600, fontSize: 14}}>{result.extracted.manufacturer}</div>
+                  </div>
+                )}
+                {result.extracted?.mrp && (
+                  <div style={{padding: "12px 16px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8}}>
+                    <div style={{fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4}}>MRP</div>
+                    <div style={{fontWeight: 600, fontSize: 14}}>{result.extracted.mrp}</div>
+                  </div>
+                )}
+                {result.extracted?.quantity && (
+                  <div style={{padding: "12px 16px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8}}>
+                    <div style={{fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4}}>Quantity</div>
+                    <div style={{fontWeight: 600, fontSize: 14}}>{result.extracted.quantity}</div>
+                  </div>
+                )}
+                {result.extracted?.batch && (
+                  <div style={{padding: "12px 16px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8}}>
+                    <div style={{fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4}}>Batch</div>
+                    <div style={{fontWeight: 600, fontSize: 14}}>{result.extracted.batch}</div>
+                  </div>
+                )}
+                {result.extracted?.hsn_code && (
+                  <div style={{padding: "12px 16px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8}}>
+                    <div style={{fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4}}>HSN Code</div>
+                    <div style={{fontWeight: 600, fontSize: 14, fontFamily: "monospace"}}>{result.extracted.hsn_code}</div>
+                  </div>
+                )}
+              </div>
+              {result.extracted?.raw_text && (
+                <details style={{marginTop: 16}}>
+                  <summary style={{cursor: "pointer", fontWeight: 600, color: "var(--muted)"}}>Raw OCR Text</summary>
+                  <pre style={{marginTop: 12, padding: 12, background: "#171717", color: "#f5f1eb", borderRadius: 8, fontSize: 12, overflow: "auto", maxHeight: 200}}>{result.extracted.raw_text}</pre>
+                </details>
+              )}
+              {result.disclaimer && (
+                <div style={{marginTop: 16, padding: 12, background: "rgba(181, 18, 27, 0.08)", border: "1px solid rgba(181, 18, 27, 0.15)", borderRadius: 8, fontSize: 12, color: "#b5121b"}}>
+                  {result.disclaimer}
+                </div>
+              )}
+              {!result.extracted?.is_number && !result.extracted?.licence_number && !result.extracted?.product_name && (
+                <div style={{textAlign: "center", padding: 40, color: "var(--muted)"}}>
+                  <PackageSearch size={48} style={{marginBottom: 16, color: "var(--border)"}} />
+                  <p>No label information could be extracted from this image.</p>
+                  <p style={{fontSize: 13, marginTop: 8}}>Try a clearer photo of the product label.</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{marginTop: 20}}>
+              {["Image & label extraction", "Potential standard matching", "Certification considerations", "Compliance checklist"].map((item, i) => (
+                <div key={item} className="step"><span>{i + 1}</span><div><b>{item}</b><small>{i === 0 ? "OCR / vision input" : i === 1 ? "Relevant IS references" : i === 2 ? "Scheme and licensing context" : "Trackable requirements"}</small></div></div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
     </>
@@ -855,26 +1009,26 @@ function Compliance() {
 
       {activeTab === "overview" && overview && (
         <>
-          <div className="compliance-stats" style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 24}}>
-            <div className="card" style={{textAlign: "center", padding: "24px 16px"}}>
-              <div style={{fontSize: 32, fontWeight: 800, color: "#171717", fontFamily: "Georgia, serif"}}>{overview.total_checks}</div>
-              <div style={{color: "#777", fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginTop: 4}}>Total Checks</div>
+          <div className="compliance-stats">
+            <div className="stat-card-item">
+              <div className="stat-value">{overview.total_checks}</div>
+              <div className="stat-label">Total Checks</div>
             </div>
-            <div className="card" style={{textAlign: "center", padding: "24px 16px"}}>
-              <div style={{fontSize: 32, fontWeight: 800, color: "#2c8b5b", fontFamily: "Georgia, serif"}}>{overview.verified}</div>
-              <div style={{color: "#777", fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginTop: 4}}>Verified</div>
+            <div className="stat-card-item">
+              <div className="stat-value stat-verified">{overview.verified}</div>
+              <div className="stat-label">Verified</div>
             </div>
-            <div className="card" style={{textAlign: "center", padding: "24px 16px"}}>
-              <div style={{fontSize: 32, fontWeight: 800, color: "#b5121b", fontFamily: "Georgia, serif"}}>{overview.needs_verification}</div>
-              <div style={{color: "#777", fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginTop: 4}}>Needs Verification</div>
+            <div className="stat-card-item">
+              <div className="stat-value stat-needs">{overview.needs_verification}</div>
+              <div className="stat-label">Needs Verification</div>
             </div>
-            <div className="card" style={{textAlign: "center", padding: "24px 16px"}}>
-              <div style={{fontSize: 32, fontWeight: 800, color: "#e67e22", fontFamily: "Georgia, serif"}}>{overview.potential_gap}</div>
-              <div style={{color: "#777", fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginTop: 4}}>Potential Gaps</div>
+            <div className="stat-card-item">
+              <div className="stat-value stat-gap">{overview.potential_gap}</div>
+              <div className="stat-label">Potential Gaps</div>
             </div>
-            <div className="card" style={{textAlign: "center", padding: "24px 16px"}}>
-              <div style={{fontSize: 32, fontWeight: 800, color: "#666", fontFamily: "Georgia, serif"}}>{overview.avg_confidence * 100}%</div>
-              <div style={{color: "#777", fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginTop: 4}}>Avg Confidence</div>
+            <div className="stat-card-item">
+              <div className="stat-value stat-conf">{overview.avg_confidence * 100}%</div>
+              <div className="stat-label">Avg Confidence</div>
             </div>
           </div>
 
@@ -1217,7 +1371,7 @@ function Laboratories() {
                   </div>
                   {lab.address && <div style={{fontSize: 13, color: "var(--muted)", marginBottom: 8}}><b>Address:</b> {lab.address}</div>}
                   {lab.accreditations && <div style={{fontSize: 13, color: "var(--muted)", marginBottom: 8}}><b>Accreditations:</b> {lab.accreditations}</div>}
-                  {lab.products && <div style={{fontSize: 13, color: "var(--muted)}}><b>Products/Standards:</b> {lab.products}</div>}
+                  {lab.products && <div style={{fontSize: 13, color: "var(--muted)", marginBottom: 8}}><b>Products/Standards:</b> {lab.products}</div>}
                   {lab.contact && <div style={{fontSize: 13, color: "var(--muted)", marginTop: 8}}><b>Contact:</b> {lab.contact}</div>}
                 </div>
               </div>
@@ -1234,25 +1388,67 @@ function Laboratories() {
 ========================================================= */
 
 function Compare() {
-  const [standards, setStandards] = useState([]);
+  const [standardsA, setStandardsA] = useState([]);
+  const [standardsB, setStandardsB] = useState([]);
   const [selectedA, setSelectedA] = useState(null);
   const [selectedB, setSelectedB] = useState(null);
   const [searchA, setSearchA] = useState("");
   const [searchB, setSearchB] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loadingA, setLoadingA] = useState(false);
+  const [loadingB, setLoadingB] = useState(false);
   const [error, setError] = useState(null);
+  const abortControllerRef = useRef({ A: null, B: null });
+  const debounceRef = useRef({ A: null, B: null });
 
-  const searchStandards = async (query, which) => {
-    if (!query.trim()) return;
-    setLoading(true);
+  const searchStandards = useCallback(async (query, which) => {
+    if (abortControllerRef.current[which]) {
+      abortControllerRef.current[which].abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current[which] = controller;
+
+    if (which === "A") setLoadingA(true);
+    else setLoadingB(true);
     setError(null);
+
     try {
-      const data = await api.standards({ q: query, limit: 10 });
-      setStandards(data.items || data);
+      const results = await api.compareSearch(query || "", 20);
+      if (!controller.signal.aborted) {
+        if (which === "A") setStandardsA(results);
+        else setStandardsB(results);
+      }
     } catch (err) {
-      setError(err);
+      if (err.name !== "AbortError" && !controller.signal.aborted) {
+        setError(err);
+        if (which === "A") setStandardsA([]);
+        else setStandardsB([]);
+      }
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        if (which === "A") setLoadingA(false);
+        else setLoadingB(false);
+      }
+    }
+  }, []);
+
+  const handleSearchChange = (value, which) => {
+    if (which === "A") setSearchA(value);
+    else setSearchB(value);
+
+    if (debounceRef.current[which]) {
+      clearTimeout(debounceRef.current[which]);
+    }
+    debounceRef.current[which] = setTimeout(() => {
+      searchStandards(value, which);
+    }, 150);
+  };
+
+  const handleFocus = (which) => {
+    // Trigger search on focus to show all standards
+    if (which === "A") {
+      searchStandards(searchA, "A");
+    } else {
+      searchStandards(searchB, "B");
     }
   };
 
@@ -1260,11 +1456,70 @@ function Compare() {
     if (which === "A") {
       setSelectedA(std);
       setSearchA(`${std.is_number} - ${std.title}`);
+      setStandardsA([]);
     } else {
       setSelectedB(std);
       setSearchB(`${std.is_number} - ${std.title}`);
+      setStandardsB([]);
     }
-    setStandards([]);
+  };
+
+  const clearSelection = (which) => {
+    if (which === "A") {
+      setSelectedA(null);
+      setSearchA("");
+      setStandardsA([]);
+    } else {
+      setSelectedB(null);
+      setSearchB("");
+      setStandardsB([]);
+    }
+  };
+
+  const SearchInput = ({ label, searchValue, standards, loading, onSearchChange, onSelect, onClear, onFocus, which }) => {
+    const [isFocused, setIsFocused] = useState(false);
+    const showDropdown = isFocused || standards.length > 0 || loading;
+
+    return (
+      <div className="compare-search-wrapper">
+        <label className="compare-search-label">{label}</label>
+        <div className="compare-search-input-wrap">
+          <input
+            type="text"
+            value={searchValue}
+            onChange={e => onSearchChange(e.target.value)}
+            onFocus={() => { setIsFocused(true); onFocus(which); }}
+            onBlur={() => setTimeout(() => setIsFocused(false), 150)}
+            placeholder="Search IS number or title..."
+            className="compare-search-input"
+            autoComplete="off"
+          />
+          {loading && <div className="compare-search-loading">⟳</div>}
+          {selectedA && which === "A" && (
+            <button type="button" className="compare-search-clear" onClick={() => onClear()} title="Clear">×</button>
+          )}
+          {selectedB && which === "B" && (
+            <button type="button" className="compare-search-clear" onClick={() => onClear()} title="Clear">×</button>
+          )}
+        </div>
+        {showDropdown && (
+          <div className="compare-dropdown">
+            {loading ? (
+              <div className="compare-dropdown-loading">Loading standards...</div>
+            ) : standards.length > 0 ? (
+              standards.map((s) => (
+                <button key={s.id} type="button" className="compare-dropdown-item" onClick={() => onSelect(s)}>
+                  <span className="compare-dropdown-is">{s.is_number}</span>
+                  <span className="compare-dropdown-title">{s.title}</span>
+                </button>
+              ))
+            ) : (
+              <div className="compare-dropdown-empty">Start typing to search or click to see all standards</div>
+            )}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -1272,49 +1527,29 @@ function Compare() {
       <PageHead eyebrow="ANALYZE" title="Compare Standards" sub="Put two standards side-by-side and inspect scope, requirements and testing context." />
       <Card style={{marginBottom: 20}}>
         <div className="compare-select">
-          <div style={{flex: 1, minWidth: 300}}>
-            <label style={{display: "block", marginBottom: 6, fontSize: 13, fontWeight: 600}}>Standard A</label>
-            <div style={{position: "relative"}}>
-              <input
-                value={searchA}
-                onChange={e => { setSearchA(e.target.value); searchStandards(e.target.value, "A"); }}
-                placeholder="Search IS number or title..."
-                style={{width: "100%", padding: "12px 16px", borderRadius: 12, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)"}}
-              />
-              {standards.length > 0 && (
-                <div style={{position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, maxHeight: 300, overflow: "auto", zIndex: 10}}>
-                  {standards.map((s) => (
-                    <div key={s.id} onClick={() => handleSelect(s, "A")} style={{padding: "12px 16px", cursor: "pointer", borderBottom: "1px solid var(--border)"}}>
-                      <div style={{fontWeight: 600, fontSize: 14}}>{s.is_number}</div>
-                      <div style={{fontSize: 12, color: "var(--muted)"}}>{s.title}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="vs" style={{display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: "var(--muted)", fontSize: 18, padding: "0 20px"}}>VS</div>
-          <div style={{flex: 1, minWidth: 300}}>
-            <label style={{display: "block", marginBottom: 6, fontSize: 13, fontWeight: 600}}>Standard B</label>
-            <div style={{position: "relative"}}>
-              <input
-                value={searchB}
-                onChange={e => { setSearchB(e.target.value); searchStandards(e.target.value, "B"); }}
-                placeholder="Search IS number or title..."
-                style={{width: "100%", padding: "12px 16px", borderRadius: 12, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)"}}
-              />
-              {standards.length > 0 && (
-                <div style={{position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, maxHeight: 300, overflow: "auto", zIndex: 10}}>
-                  {standards.map((s) => (
-                    <div key={s.id} onClick={() => handleSelect(s, "B")} style={{padding: "12px 16px", cursor: "pointer", borderBottom: "1px solid var(--border)"}}>
-                      <div style={{fontWeight: 600, fontSize: 14}}>{s.is_number}</div>
-                      <div style={{fontSize: 12, color: "var(--muted)"}}>{s.title}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          <SearchInput
+            label="Standard A"
+            searchValue={searchA}
+            standards={standardsA}
+            loading={loadingA}
+            onSearchChange={(v) => handleSearchChange(v, "A")}
+            onSelect={(s) => handleSelect(s, "A")}
+            onClear={() => clearSelection("A")}
+            onFocus={handleFocus}
+            which="A"
+          />
+          <div className="vs">VS</div>
+          <SearchInput
+            label="Standard B"
+            searchValue={searchB}
+            standards={standardsB}
+            loading={loadingB}
+            onSearchChange={(v) => handleSearchChange(v, "B")}
+            onSelect={(s) => handleSelect(s, "B")}
+            onClear={() => clearSelection("B")}
+            onFocus={handleFocus}
+            which="B"
+          />
         </div>
       </Card>
 

@@ -22,6 +22,7 @@ from app.api.routes import (
     chat,
     citations,
     compliance,
+    compare,
     consumer,
     documents,
     hallmarking,
@@ -68,6 +69,7 @@ app.include_router(auth.router, prefix=PREFIX)
 app.include_router(chat.router, prefix=PREFIX)
 app.include_router(search.router, prefix=PREFIX)
 app.include_router(standards.router, prefix=PREFIX)
+app.include_router(compare.router, prefix=PREFIX)
 app.include_router(certification.router, prefix=PREFIX)
 app.include_router(qco.router, prefix=PREFIX)
 app.include_router(labs.router, prefix=PREFIX)

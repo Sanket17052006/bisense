@@ -193,6 +193,33 @@ def step4_start_backend():
     return p
 
 
+def step5_start_frontend():
+    """Start the Vite frontend dev server."""
+    FRONTEND_DIR = BASE_DIR / "frontend"
+    
+    # Check if frontend exists
+    if not (FRONTEND_DIR / "package.json").exists():
+        print("Frontend directory not found, skipping...")
+        return None
+    
+    # Install dependencies if node_modules doesn't exist
+    if not (FRONTEND_DIR / "node_modules").exists():
+        print("Installing frontend dependencies...")
+        run_cmd(["npm", "install"], cwd=FRONTEND_DIR)
+    
+    # Start Vite dev server in background
+    p = run_bg(["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"], cwd=FRONTEND_DIR)
+    
+    # Wait for frontend to be ready
+    print("Waiting for frontend to start...")
+    if not wait_for_port("localhost", 5173, timeout=30):
+        raise RuntimeError("Frontend did not start in time")
+    
+    time.sleep(2)
+    
+    return p
+
+
 def main():
     print("BISense AI - Complete System Startup")
     print("=" * 60)
@@ -224,13 +251,15 @@ def main():
         step("Seed Database (standards, QCOs, labs, schemes)", step2_seed_database)
         step("Build RAG Indexes (FAISS + BM25)", step3_build_rag_indexes)
         step("Start Backend Server", step4_start_backend)
+        step("Start Frontend Server", step5_start_frontend)
         
         print("\n" + "=" * 60)
         print("✓ BISense AI is RUNNING")
         print("=" * 60)
-        print("\nBackend: http://localhost:8000")
+        print("\nBackend:  http://localhost:8000")
         print("API Docs: http://localhost:8000/docs")
-        print("Health: http://localhost:8000/api/health")
+        print("Health:   http://localhost:8000/api/health")
+        print("Frontend: http://localhost:5173")
         print("\nPress Ctrl+C to stop all services")
         print("=" * 60)
         

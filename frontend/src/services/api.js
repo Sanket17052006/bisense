@@ -5,7 +5,7 @@ const demoMode = (import.meta.env.VITE_DEMO_MODE ?? "false") === "true";
 
 const client = axios.create({
   baseURL,
-  timeout: 15000,
+  timeout: 60000,
   headers: { "Content-Type": "application/json" }
 });
 
@@ -70,7 +70,7 @@ export const api = {
     }
   },
   dashboard: async () => demoMode ? demo.dashboard : (await client.get("/api/dashboard")).data,
-  standards: async (params) => demoMode ? demo.standards : (await client.get("/api/standards", { params })).data,
+  standards: async (params, options) => demoMode ? demo.standards : (await client.get("/api/standards", { params, ...options })).data,
   standardCategories: async () => demoMode ? demo.categories : (await client.get("/api/standards/categories")).data,
   standardDetail: async (id) => demoMode ? demo.standards.find(s => s.id === id) : (await client.get(`/api/standards/${id}`)).data,
   chat: async (message) => demoMode ? ({ answer: "Demo mode is active. Your question was: " + message }) : (await client.post("/api/chat", { message })).data,
@@ -82,6 +82,7 @@ export const api = {
     checkDetail: async (id) => demoMode ? ({ status: "demo" }) : (await client.get(`/api/compliance/checks/${id}`)).data,
   },
   compare: async (payload) => demoMode ? ({ status: "demo" }) : (await client.post("/api/compare", payload)).data,
+  compareSearch: async (q, limit = 10) => demoMode ? demo.standards : (await client.get("/api/compare/search", { params: { q, limit } })).data,
   laboratories: {
     list: async (params) => demoMode ? demo.labs : (await client.get("/api/labs", { params })).data,
     detail: async (id) => demoMode ? null : (await client.get(`/api/labs/${id}`)).data,

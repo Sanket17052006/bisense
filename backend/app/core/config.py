@@ -39,12 +39,12 @@ class Settings(BaseSettings):
 
     # --- LLM ---
     openai_api_key: str | None = None
-    llm_model: str = "openai/gpt-oss-120b"
+    llm_model: str = "llama-3.1-70b-versatile"
     llm_base_url: str | None = "https://api.groq.com/openai/v1"
-    llm_timeout: float = 30.0
-    llm_max_retries: int = 2
+    llm_timeout: float = 60.0
+    llm_max_retries: int = 3
     groq_api_key: str | None = None
-    groq_model: str = "qwen/qwen3.8-27b"
+    groq_model: str = "llama-3.1-70b-versatile"
 
     # --- RAG ---
     embedder: str = "sentence-transformers"  # "sentence-transformers" | "tfidf" | "openai"
