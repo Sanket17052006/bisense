@@ -20,10 +20,15 @@ psycopg2-binary>=2.9.10
 pymupdf>=1.24.14
 numpy>=2.2.1
 scikit-learn>=1.6.0
-sentence-transformers>=3.3.1
 rank-bm25>=0.2.2
 faiss-cpu>=1.8.0
 pandas>=2.2.0
+
+# --- CPU-only PyTorch (install FIRST, smaller) ---
+--index-url https://download.pytorch.org/whl/cpu
+torch>=2.5.0
+--index-url https://pypi.org/simple
+sentence-transformers>=3.3.1
 
 # --- LLM / agents (Member 2) ---
 openai>=1.59.7
