@@ -107,3 +107,24 @@ def freshness_report(admin: User = Depends(require_admin), db: Session = Depends
             }
         )
     return out
+
+
+@router.post("/seed")
+def seed_database(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    from app.db.seed import (
+        seed_standards, seed_labs, seed_qcos, seed_schemes, seed_rag_index
+    )
+    n_std = seed_standards(db)
+    n_lab = seed_labs(db)
+    n_qco = seed_qcos(db)
+    n_sch = seed_schemes(db)
+    n_chunks = seed_rag_index(db)
+    db.commit()
+    return {
+        "status": "seeded",
+        "standards": n_std,
+        "labs": n_lab,
+        "qcos": n_qco,
+        "schemes": n_sch,
+        "rag_records": n_chunks
+    }
