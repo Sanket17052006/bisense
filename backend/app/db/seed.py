@@ -232,7 +232,10 @@ def main() -> None:
     force = reset or "--force" in sys.argv
 
     if reset:
-        Base.metadata.drop_all(bind=engine)
+        from sqlalchemy import text
+        with engine.begin() as conn:
+            conn.execute(text("DROP SCHEMA public CASCADE"))
+            conn.execute(text("CREATE SCHEMA public"))
     Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()
