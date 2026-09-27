@@ -772,12 +772,259 @@ function SimpleFeature({ type, title, sub, icon: Icon, items }) {
 ========================================================= */
 
 function Compliance() {
+  const [overview, setOverview] = useState(null);
+  const [checks, setChecks] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [formData, setFormData] = useState({ product_type: "", is_number: "" });
+  const [checkResult, setCheckResult] = useState(null);
+
+  const loadOverview = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.compliance.overview();
+      setOverview(data);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadChecks = async () => {
+    try {
+      const data = await api.compliance.checks();
+      setChecks(data);
+    } catch (err) {
+      setError(err);
+    }
+  };
+
+  const handleCheck = async () => {
+    if (!formData.product_type.trim() && !formData.is_number.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await api.compliance.check(formData);
+      setCheckResult(result);
+      loadOverview();
+      loadChecks();
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOverview();
+    loadChecks();
+  }, []);
+
+  const statusColor = (status) => {
+    switch (status) {
+      case "verified": return "green";
+      case "needs_verification": return "yellow";
+      case "potential_gap": return "red";
+      default: return "neutral";
+    }
+  };
+
+  const statusLabel = (status) => {
+    switch (status) {
+      case "verified": return "Verified";
+      case "needs_verification": return "Needs Verification";
+      case "potential_gap": return "Potential Gap";
+      default: return "Unavailable";
+    }
+  };
+
+  if (!overview && loading) return <div className="loading-screen"><div className="loader"></div></div>;
+
   return (
-    <SimpleFeature type="WORKFLOW" title="Compliance Assistant" sub="Build a structured checklist from available standard information." icon={ClipboardCheck} items={[
-      { tag: "CHECKLIST", title: "Product requirements", desc: "Track declarations, tests and evidence against a selected standard." },
-      { tag: "EVIDENCE", title: "Evidence vault", desc: "Keep supporting files and notes attached to each requirement." },
-      { tag: "REPORT", title: "Compliance report", desc: "Prepare a clean review summary for internal verification." }
-    ]} />
+    <>
+      <PageHead eyebrow="WORKFLOW" title="Compliance Assistant" sub="Run compliance checks and track verification status." />
+      <div className="compliance-tabs" style={{marginBottom: 20}}>
+        <button className={activeTab === "overview" ? "primary" : "secondary"} onClick={() => setActiveTab("overview")}>Overview</button>
+        <button className={activeTab === "check" ? "primary" : "secondary"} onClick={() => setActiveTab("check")}>Run Check</button>
+        <button className={activeTab === "history" ? "primary" : "secondary"} onClick={() => setActiveTab("history")}>History</button>
+      </div>
+      {error && <div className="roadmap-error" style={{marginBottom: 20}}><strong>Error:</strong> {error.message || error}</div>}
+
+      {activeTab === "overview" && overview && (
+        <>
+          <div className="compliance-stats" style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 24}}>
+            <div className="card" style={{textAlign: "center", padding: "24px 16px"}}>
+              <div style={{fontSize: 32, fontWeight: 800, color: "#171717", fontFamily: "Georgia, serif"}}>{overview.total_checks}</div>
+              <div style={{color: "#777", fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginTop: 4}}>Total Checks</div>
+            </div>
+            <div className="card" style={{textAlign: "center", padding: "24px 16px"}}>
+              <div style={{fontSize: 32, fontWeight: 800, color: "#2c8b5b", fontFamily: "Georgia, serif"}}>{overview.verified}</div>
+              <div style={{color: "#777", fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginTop: 4}}>Verified</div>
+            </div>
+            <div className="card" style={{textAlign: "center", padding: "24px 16px"}}>
+              <div style={{fontSize: 32, fontWeight: 800, color: "#b5121b", fontFamily: "Georgia, serif"}}>{overview.needs_verification}</div>
+              <div style={{color: "#777", fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginTop: 4}}>Needs Verification</div>
+            </div>
+            <div className="card" style={{textAlign: "center", padding: "24px 16px"}}>
+              <div style={{fontSize: 32, fontWeight: 800, color: "#e67e22", fontFamily: "Georgia, serif"}}>{overview.potential_gap}</div>
+              <div style={{color: "#777", fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginTop: 4}}>Potential Gaps</div>
+            </div>
+            <div className="card" style={{textAlign: "center", padding: "24px 16px"}}>
+              <div style={{fontSize: 32, fontWeight: 800, color: "#666", fontFamily: "Georgia, serif"}}>{overview.avg_confidence * 100}%</div>
+              <div style={{color: "#777", fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginTop: 4}}>Avg Confidence</div>
+            </div>
+          </div>
+
+          {overview.recent?.length && (
+            <Card>
+              <div className="card-title"><h3>Recent Checks</h3></div>
+              <div style={{overflowX: "auto"}}>
+                <table style={{width: "100%", borderCollapse: "collapse"}}>
+                  <thead>
+                    <tr style={{borderBottom: "1px solid #e9e1d8"}}>
+                      <th style={{textAlign: "left", padding: "12px 16px", fontSize: 12, color: "#777", textTransform: "uppercase", letterSpacing: 1}}>Product</th>
+                      <th style={{textAlign: "left", padding: "12px 16px", fontSize: 12, color: "#777", textTransform: "uppercase", letterSpacing: 1}}>IS Number</th>
+                      <th style={{textAlign: "left", padding: "12px 16px", fontSize: 12, color: "#777", textTransform: "uppercase", letterSpacing: 1}}>Status</th>
+                      <th style={{textAlign: "left", padding: "12px 16px", fontSize: 12, color: "#777", textTransform: "uppercase", letterSpacing: 1}}>Confidence</th>
+                      <th style={{textAlign: "left", padding: "12px 16px", fontSize: 12, color: "#777", textTransform: "uppercase", letterSpacing: 1}}>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {overview.recent.map((c) => (
+                      <tr key={c.id} style={{borderBottom: "1px solid #f0eeec"}}>
+                        <td style={{padding: "12px 16px", fontSize: 13}}>{c.product || "—"}</td>
+                        <td style={{padding: "12px 16px", fontSize: 13, fontFamily: "monospace"}}>{c.is_number || "—"}</td>
+                        <td style={{padding: "12px 16px"}}><Badge tone={statusColor(c.status)}>{statusLabel(c.status)}</Badge></td>
+                        <td style={{padding: "12px 16px", fontSize: 13}}>{(c.confidence * 100).toFixed(0)}%</td>
+                        <td style={{padding: "12px 16px", fontSize: 12, color: "#777"}}>{c.created_at ? new Date(c.created_at).toLocaleDateString() : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+        </>
+      )}
+
+      {activeTab === "check" && (
+        <>
+          <Card style={{marginBottom: 20}}>
+            <div className="card-title"><h3>Run New Compliance Check</h3></div>
+            <div style={{display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 16}}>
+              <div style={{flex: 1, minWidth: 250}}>
+                <label style={{display: "block", marginBottom: 6, fontSize: 13, fontWeight: 600, color: "#171717"}}>Product Type</label>
+                <input
+                  value={formData.product_type}
+                  onChange={e => setFormData({...formData, product_type: e.target.value})}
+                  placeholder="e.g., Packaged Drinking Water"
+                  style={{width: "100%", padding: "12px 16px", borderRadius: 12, border: "1px solid #e9e1d8", background: "#fffdf9", fontSize: 14}}
+                />
+              </div>
+              <div style={{flex: 1, minWidth: 250}}>
+                <label style={{display: "block", marginBottom: 6, fontSize: 13, fontWeight: 600, color: "#171717"}}>IS Number (optional)</label>
+                <input
+                  value={formData.is_number}
+                  onChange={e => setFormData({...formData, is_number: e.target.value})}
+                  placeholder="e.g., IS 14543"
+                  style={{width: "100%", padding: "12px 16px", borderRadius: 12, border: "1px solid #e9e1d8", background: "#fffdf9", fontSize: 14}}
+                />
+              </div>
+            </div>
+            <button className="primary" onClick={handleCheck} disabled={loading || (!formData.product_type.trim() && !formData.is_number.trim())}>
+              {loading ? "Running Check…" : "Run Compliance Check"}
+            </button>
+          </Card>
+
+          {checkResult && (
+            <Card>
+              <div className="card-title"><h3>Check Result</h3><Badge tone={statusColor(checkResult.status)}>{statusLabel(checkResult.status)}</Badge></div>
+              <div style={{marginTop: 16, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))"}}>
+                <div style={{padding: "16px", background: "#faf7f2", borderRadius: 12, border: "1px solid #e9e1d8"}}>
+                  <div style={{fontSize: 11, color: "#777", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4}}>Product</div>
+                  <div style={{fontWeight: 700, fontSize: 14}}>{checkResult.product || "Not specified"}</div>
+                </div>
+                <div style={{padding: "16px", background: "#faf7f2", borderRadius: 12, border: "1px solid #e9e1d8"}}>
+                  <div style={{fontSize: 11, color: "#777", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4}}>IS Number</div>
+                  <div style={{fontWeight: 700, fontSize: 14, fontFamily: "monospace"}}>{checkResult.is_number || "Not specified"}</div>
+                </div>
+                <div style={{padding: "16px", background: "#faf7f2", borderRadius: 12, border: "1px solid #e9e1d8"}}>
+                  <div style={{fontSize: 11, color: "#777", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4}}>Confidence</div>
+                  <div style={{fontWeight: 700, fontSize: 14}}>{(checkResult.confidence * 100).toFixed(0)}%</div>
+                </div>
+              </div>
+              {checkResult.summary && (
+                <div style={{marginTop: 16, padding: "16px", background: "#faf7f2", borderRadius: 12, border: "1px solid #e9e1d8"}}>
+                  <div style={{fontSize: 11, color: "#777", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4}}>Summary</div>
+                  <div style={{fontSize: 13, color: "#555", lineHeight: 1.6}}>{checkResult.summary}</div>
+                </div>
+              )}
+              {checkResult.findings?.length && (
+                <div style={{marginTop: 16}}>
+                  <h4 style={{margin: "0 0 12px", fontSize: 14, fontWeight: 700}}>Findings</h4>
+                  <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+                    {checkResult.findings.map((f, i) => (
+                      <div key={i} style={{padding: "12px 16px", background: "#faf7f2", borderRadius: 10, border: "1px solid #e9e1d8", display: "flex", gap: 12, alignItems: "flex-start"}}>
+                        <Badge tone={statusColor(f.status)} style={{flexShrink: 0}}>{statusLabel(f.status)}</Badge>
+                        <div style={{flex: 1}}>
+                          <div style={{fontWeight: 600, fontSize: 13}}>{f.check}</div>
+                          <div style={{fontSize: 12, color: "#777", marginTop: 2}}>{f.detail}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Card>
+          )}
+        </>
+      )}
+
+      {activeTab === "history" && (
+        <Card>
+          <div className="card-title"><h3>Check History</h3></div>
+          {checks.length === 0 ? (
+            <div className="roadmap-empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{width: 64, height: 64, marginBottom: 16, color: "#ccc"}}>
+                <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              <h3>No compliance checks yet</h3>
+              <p>Run a check from the "Run Check" tab to see history here.</p>
+            </div>
+          ) : (
+            <div style={{overflowX: "auto"}}>
+              <table style={{width: "100%", borderCollapse: "collapse"}}>
+                <thead>
+                  <tr style={{borderBottom: "1px solid #e9e1d8"}}>
+                    <th style={{textAlign: "left", padding: "12px 16px", fontSize: 12, color: "#777", textTransform: "uppercase", letterSpacing: 1}}>Product</th>
+                    <th style={{textAlign: "left", padding: "12px 16px", fontSize: 12, color: "#777", textTransform: "uppercase", letterSpacing: 1}}>IS Number</th>
+                    <th style={{textAlign: "left", padding: "12px 16px", fontSize: 12, color: "#777", textTransform: "uppercase", letterSpacing: 1}}>Status</th>
+                    <th style={{textAlign: "left", padding: "12px 16px", fontSize: 12, color: "#777", textTransform: "uppercase", letterSpacing: 1}}>Confidence</th>
+                    <th style={{textAlign: "left", padding: "12px 16px", fontSize: 12, color: "#777", textTransform: "uppercase", letterSpacing: 1}}>Date</th>
+                    <th style={{textAlign: "left", padding: "12px 16px", fontSize: 12, color: "#777", textTransform: "uppercase", letterSpacing: 1}}>Findings</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {checks.map((c) => (
+                    <tr key={c.id} style={{borderBottom: "1px solid #f0eeec"}}>
+                      <td style={{padding: "12px 16px", fontSize: 13}}>{c.product || "—"}</td>
+                      <td style={{padding: "12px 16px", fontSize: 13, fontFamily: "monospace"}}>{c.is_number || "—"}</td>
+                      <td style={{padding: "12px 16px"}}><Badge tone={statusColor(c.status)}>{statusLabel(c.status)}</Badge></td>
+                      <td style={{padding: "12px 16px", fontSize: 13}}>{(c.confidence * 100).toFixed(0)}%</td>
+                      <td style={{padding: "12px 16px", fontSize: 12, color: "#777"}}>{c.created_at ? new Date(c.created_at).toLocaleDateString() : "—"}</td>
+                      <td style={{padding: "12px 16px", fontSize: 12, color: "#777"}}>{c.findings?.length || 0} items</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
+    </>
   );
 }
 
