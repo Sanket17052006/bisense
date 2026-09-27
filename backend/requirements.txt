@@ -34,7 +34,7 @@ langchain-groq>=0.2.0
 # --- vision / OCR (Member 4) ---
 # pytesseract>=0.3.13     # needs `tesseract` binary (brew install tesseract)
 # paddleocr>=2.8.1        # heavy; needs paddlepaddle
-# opencv-python-headless>=4.10.0.84
+opencv-python-headless>=4.10.0.84
 
 # --- verification / freshness (Member 6) ---
 # requests>=2.32          # needed for online HEAD checks; urllib3/stdlib is default
